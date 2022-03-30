@@ -1,0 +1,142 @@
+===========================================================  
+restQ v0.0.1  
+  
+  
+[Wed Mar 30 2022 15:54:45 GMT+0700 (Indochina Time)] [error] Application: uncaughtException: Cannot access 'HomeController' before initialization  
+[Wed Mar 30 2022 15:54:45 GMT+0700 (Indochina Time)] [error] Application: ReferenceError: Cannot access 'HomeController' before initialization
+    at Object.<anonymous> (/Users/kient.nguyen175/Documents/restQ/controllers/home-controller.js:1:18)
+    at Module._compile (internal/modules/cjs/loader.js:1072:14)
+    at Object.Module._extensions..js (internal/modules/cjs/loader.js:1101:10)
+    at Module.load (internal/modules/cjs/loader.js:937:32)
+    at Function.Module._load (internal/modules/cjs/loader.js:778:12)
+    at Module.require (internal/modules/cjs/loader.js:961:19)
+    at require (internal/modules/cjs/helpers.js:92:18)
+    at /Users/kient.nguyen175/Documents/restQ/core/loader/auto-loader.js:49:33
+    at Array.forEach (<anonymous>)
+    at AutoLoader.loadDirectory (/Users/kient.nguyen175/Documents/restQ/core/loader/auto-loader.js:46:20)  
+===========================================================  
+restQ v0.0.1  
+  
+  
+[Wed Mar 30 2022 15:55:16 GMT+0700 (Indochina Time)] [error] Application: uncaughtException: Cannot access 'HomeController' before initialization  
+[Wed Mar 30 2022 15:55:16 GMT+0700 (Indochina Time)] [error] Application: ReferenceError: Cannot access 'HomeController' before initialization
+    at Object.<anonymous> (/Users/kient.nguyen175/Documents/restQ/controllers/home-controller.js:1:18)
+    at Module._compile (internal/modules/cjs/loader.js:1072:14)
+    at Object.Module._extensions..js (internal/modules/cjs/loader.js:1101:10)
+    at Module.load (internal/modules/cjs/loader.js:937:32)
+    at Function.Module._load (internal/modules/cjs/loader.js:778:12)
+    at Module.require (internal/modules/cjs/loader.js:961:19)
+    at require (internal/modules/cjs/helpers.js:92:18)
+    at /Users/kient.nguyen175/Documents/restQ/core/loader/auto-loader.js:49:33
+    at Array.forEach (<anonymous>)
+    at AutoLoader.loadDirectory (/Users/kient.nguyen175/Documents/restQ/core/loader/auto-loader.js:46:20)  
+===========================================================  
+restQ v0.0.1  
+  
+  
+Start time:  30/03/2022 15:56:4  
+Local IP:    10.0.40.234  
+Port:        2307  
+SSL mode:    false  
+Debug mode:  true  
+===========================================================  
+===========================================================  
+  
+Start time:  30/03/2022 15:56:45  
+SSL mode:    false  
+===========================================================  
+Debug mode:  true  
+Local IP:    10.0.40.234  
+  
+restQ v0.0.1  
+Port:        2307  
+===========================================================  
+restQ v0.0.1  
+  
+  
+Start time:  30/03/2022 15:56:56  
+Local IP:    10.0.40.234  
+Port:        2307  
+SSL mode:    false  
+Debug mode:  true  
+===========================================================  
+===========================================================  
+restQ v0.0.1  
+  
+  
+Start time:  30/03/2022 15:57:12  
+Port:        2307  
+Local IP:    10.0.40.234  
+SSL mode:    false  
+Debug mode:  true  
+===========================================================  
+===========================================================  
+restQ v0.0.1  
+  
+  
+Start time:  30/03/2022 15:57:17  
+Local IP:    10.0.40.234  
+Port:        2307  
+SSL mode:    false  
+Debug mode:  true  
+===========================================================  
+===========================================================  
+restQ v0.0.1  
+  
+  
+Start time:  30/03/2022 15:57:19  
+Local IP:    10.0.40.234  
+Port:        2307  
+SSL mode:    false  
+Debug mode:  true  
+===========================================================  
+===========================================================  
+restQ v0.0.1  
+  
+  
+Start time:  30/03/2022 15:57:28  
+Local IP:    10.0.40.234  
+Port:        2307  
+SSL mode:    false  
+Debug mode:  true  
+===========================================================  
+===========================================================  
+Start time:  30/03/2022 15:57:48  
+Port:        2307  
+SSL mode:    false  
+Debug mode:  true  
+Local IP:    10.0.40.234  
+===========================================================  
+restQ v0.0.1  
+  
+  
+===========================================================  
+  
+restQ v0.0.1  
+  
+SSL mode:    false  
+Debug mode:  true  
+===========================================================  
+Start time:  30/03/2022 15:57:54  
+Port:        2307  
+Local IP:    10.0.40.234  
+===========================================================  
+restQ v0.0.1  
+  
+  
+Start time:  30/03/2022 15:57:57  
+Local IP:    10.0.40.234  
+Port:        2307  
+SSL mode:    false  
+Debug mode:  true  
+===========================================================  
+===========================================================  
+restQ v0.0.1  
+  
+  
+Start time:  30/03/2022 15:58:0  
+Local IP:    10.0.40.234  
+Port:        2307  
+SSL mode:    false  
+Debug mode:  true  
+===========================================================  
