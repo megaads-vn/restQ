@@ -9,10 +9,13 @@
     "contributors": [],
     "repository": {},
     "dependencies": {
-        "socket.io": "2.*",
-        "ejs": "2.*",
-        "lru-cache": "1.*",
+        "axios": "^0.26.1",
         "crypto": "*",
+        "ejs": "2.*",
+        "knex": "^1.0.4",
+        "lru-cache": "1.*",
+        "mysql": "^2.18.1",
+        "socket.io": "2.*",
         "url-pattern": "1.*"
     }
 }

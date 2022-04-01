@@ -95,6 +95,32 @@ function Util() {
         var second = date.getSeconds();
         return day + "/" + month + "/" + year + " " + hour + ":" + minute + ":" + second;
     };
+    this.currentDatetime = function () {
+        let date = new Date();
+        let d = date.getDate();
+        let m = date.getMonth() + 1; 
+        let Y = date.getFullYear();
+        let H = date.getHours();
+        let i = date.getMinutes();
+        let s = date.getSeconds();
+        if (d < 10) {
+            d = `0${d}`;
+        } 
+        if (m < 10) {
+            m = `0${m}`;
+        } 
+        if (H < 10) {
+            H = `0${H}`;
+        }
+        if (i < 10) {
+            i = `0${i}`;
+        }
+        if (s < 10) {
+            s = `0${s}`;
+        }
+
+        return `${Y}-${m}-${d} ${H}:${i}:${s}`;
+    }
     this.getFunctionParamNames = function (func) {
         var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
         var ARGUMENT_NAMES = /([^\s,]+)/g;
