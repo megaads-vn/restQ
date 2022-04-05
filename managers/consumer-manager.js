@@ -1,8 +1,11 @@
 const Consumer = require(__dir + "/objects/consumer");
+const config = require(__dir + "/core/app/config"); 
+const event = require(__dir + "/core/app/event"); 
 
 class ConsumerManager {
-    constructor() {
+    constructor($config) {
         this.consumers = [];
+        this.$config = $config;
     }
 
     getConsumer(message) {
@@ -13,9 +16,16 @@ class ConsumerManager {
                 if (message.data.url[0] != '/') {
                     message.data.url = '/' + message.data.url;
                 }
-                let regex = new RegExp(consumer.path); 
-                if (regex.test(message.data.url)) {
-                    retVal = consumer;
+
+                let havingAnyValidConsumer = false;
+                consumer.paths.forEach(path => {
+                    let regex = new RegExp(path); 
+                    if (regex.test(message.data.url)) {
+                        retVal = consumer;
+                        havingAnyValidConsumer = true;
+                    }
+                });
+                if (havingAnyValidConsumer) {
                     return false;
                 }
             }
@@ -28,9 +38,10 @@ class ConsumerManager {
     updateConsumer(consumer) {
         let retVal = 0;
 
+        let self = this;
         this.consumers.every(function (item, index) {
             if (item.code == consumer.code) {
-                this.consumers[index] = consumer;
+                self.consumers[index] = consumer;
                 retVal = 1;
                 return false;
             }
@@ -40,16 +51,34 @@ class ConsumerManager {
         return retVal;
     }
 
-    loadConsumer(consumerConfig) {
-        let consumer = new Consumer();
-        consumer.ip = consumerConfig.ip;
-        consumer.port = consumerConfig.port;
-        consumer.qos = consumerConfig.qos;
-        consumer.path = consumerConfig.path;
-        consumer.processing_request_count = consumerConfig.processing_request_count;
-        
-        this.consumers.push(consumer);
+    loadConsumers() {
+        let self = this;
+        let consumers = self.$config.get("consumers.consumers");
+
+        consumers.forEach(item => {
+            let consumer = new Consumer(event);
+            consumer.origin = item.origin;
+            consumer.qos = item.qos;
+            consumer.paths = item.paths;
+
+            self.consumers.push(consumer);
+        });
+    }
+
+    havingAnyConsumerIsIdle() {
+        let retVal = false;
+
+        this.consumers.every(function (consumer) {
+            if (consumer.processing_request_count < consumer.qos) {
+                retVal = true;
+                return false;
+            }
+            return true;
+        })
+
+        return retVal;
     }
 }
 
-module.exports = ConsumerManager;
+
+module.exports = new ConsumerManager(config);

@@ -5,7 +5,8 @@ module.exports = {
     autoload: [
         "/controllers",
         "/entities",
-        "/start"
+        "/start",
+        "/queue-server",
     ],
     assetPath: "/assets",
     encryption: {

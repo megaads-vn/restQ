@@ -2,13 +2,12 @@ const ConsumerInterface = require(__dir + "/interfaces/consumer-interface");
 const axios = require('axios');
 
 class Consumer extends ConsumerInterface {
-    constructor(port, ip, qos, path, $event) {
+    constructor($event, origin = null, qos = 0, paths = []) {
         super();
         this.code = Consumer.generateConsumerCode;
-        this.port = port;
-        this.ip = ip;
+        this.origin = origin;
         this.qos = qos;
-        this.path = path;
+        this.paths = paths;
         this.processing_request_count = 0;
         this.$event = $event;
     }
@@ -30,24 +29,30 @@ class Consumer extends ConsumerInterface {
             this.processing_request_count++;
             let self = this;
 
+            let data = null;
+            if (message.data.payload 
+                && Object.keys(message.data.payload).length !== 0
+                && Object.getPrototypeOf(message.data.payload) === Object.prototype) {
+                data = message.data.payload;
+            }
+            
             axios({
                 method: message.data.method,
-                url: message.data.url,
-                data: message.data.payload ?? null
+                url: self.origin + message.data.url,
+                data: data
             }).then(function (response) {
+                console.log('hefs');
                 self.processing_request_count--;
-                if (response.status == 200) {
-                    message.status = 'DONE';
-                    message.last_processed_at = Date.now();
-                    self.$event.fire('consumer::done::successful', message);
-                } else {
-                    message.status = 'WAITING';
-                    self.$event.fire('consumer::done::failed', message);
-                }
+                message.status = 'DONE';
+                message.last_processed_at = Date.now();
+                self.$event.fire('consumer::done', {message, consumer: self, response, status: 'successful'});
             }).catch(function (error) {
                 self.processing_request_count--;
                 message.status = 'WAITING';
-                self.$event.fire('consumer::done::failed', message);
+                if (message.last_processing_at) {
+                    message.retry_count++; 
+                }
+                self.$event.fire('consumer::done', {message, consumer: self, response: error.response, status: 'error'});
             });
         }
     }

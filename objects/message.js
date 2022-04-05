@@ -1,16 +1,17 @@
 class Message {
-    constructor(data = null, callback_url = null, is_callback = 0, priority = 0) {
+    constructor(data = null, postback_url = null, is_callback = 0, priority = 0) {
         this.code = Message.generateMessageCode(32);
         this.status = 'WAITING';
         this.data = data;
+        this.path = data ? data.url : null;
         this.priority = priority;
         this.retry_count = 0;
-        this.callback_url = callback_url;
+        this.postback_url = postback_url;
         this.is_callback = is_callback;
         this.created_at = Date.now();
-        this.first_processing_at = null,
-        this.last_processing_at = null,
-        this.last_processed_at = null
+        this.first_processing_at = 0,
+        this.last_processing_at = 0,
+        this.last_processed_at = 0
     }
 
     static generateMessageCode(length = 32) {
@@ -28,11 +29,12 @@ class Message {
     serialize() {
         return {
             code: this.code ?? Message.generateMessageCode(32),
-            data: this.data,
+            data: this.data ? JSON.stringify(this.data) : null,
+            path: this.path,
             priority: this.priority,
             status: this.status,
             retry_count: this.retry_count,
-            callback_url: this.callback_url,
+            postback_url: this.postback_url,
             is_callback: this.is_callback,
             created_at: this.created_at,
             first_processing_at: this.first_processing_at,
@@ -41,20 +43,37 @@ class Message {
         }
     }
 
-    buildMessage(data) {
+    static buildMessageFromDatabaseRecord(data) {
         let retVal = new Message();
         retVal.code = data.code ?? retVal.code;
-        retVal.data = data.data ?? retVal.data;
+        retVal.data = data.data ? JSON.parse(data.data) : retVal.data;
+        retVal.path = data.path ?? retVal.path;
         retVal.priority = data.priority ?? retVal.priority;
         retVal.status = data.status ?? retVal.status;
         retVal.retry_count = data.retry_count ?? retVal.retry_count;
-        retVal.callback_url = data.callback_url ?? retVal.callback_url;
+        retVal.postback_url = data.postback_url ?? retVal.postback_url;
         retVal.is_callback = data.is_callback ?? retVal.is_callback;
         retVal.created_at = data.created_at ?? retVal.created_at;
         retVal.first_processing_at = data.first_processing_at ?? retVal.first_processing_at;
         retVal.last_processing_at = data.last_processing_at ?? retVal.last_processing_at;
         retVal.last_processed_at = data.last_processed_at ?? retVal.last_processed_at;
 
+        return retVal;
+    }
+
+    static buildMessageFromIO(io) {
+        let retVal = new Message();
+        retVal.data = {
+            url: io.request.url,
+            method: io.request.method,
+            payload: io.request.inputs
+        };
+        delete retVal.data.payload._;
+        retVal.path = io.request.url;
+        retVal.priority = io.request.inputs.priority ?? 0;
+        retVal.postback_url = io.request.inputs.postback_url ?? null;
+        retVal.is_callback = io.request.inputs.is_callback ? 1 : 0;
+        
         return retVal;
     }
 }

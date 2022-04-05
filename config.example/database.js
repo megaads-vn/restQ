@@ -1,9 +1,9 @@
 module.exports = {
     client: 'mysql',
     connection: {
-        host: '192.168.1.172',
+        host: 'localhost',
+        database: 'restq',
         user: 'root',
-        password: '123@123',
-        database: 'restq'
+        password: 'simba175'
     }
 };
