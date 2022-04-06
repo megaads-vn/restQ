@@ -3,9 +3,10 @@ const config = require(__dir + "/core/app/config");
 const event = require(__dir + "/core/app/event"); 
 
 class ConsumerManager {
-    constructor($config) {
+    constructor($config, $event) {
         this.consumers = [];
         this.$config = $config;
+        this.$event = $event;
     }
 
     getConsumer(message) {
@@ -56,7 +57,7 @@ class ConsumerManager {
         let consumers = self.$config.get("consumers.consumers");
 
         consumers.forEach(item => {
-            let consumer = new Consumer(event);
+            let consumer = new Consumer(self.$config, self.$event);
             consumer.origin = item.origin;
             consumer.qos = item.qos;
             consumer.paths = item.paths;
@@ -81,4 +82,4 @@ class ConsumerManager {
 }
 
 
-module.exports = new ConsumerManager(config);
+module.exports = new ConsumerManager(config, event);

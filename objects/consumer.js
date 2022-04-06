@@ -2,7 +2,7 @@ const ConsumerInterface = require(__dir + "/interfaces/consumer-interface");
 const axios = require('axios');
 
 class Consumer extends ConsumerInterface {
-    constructor($event, origin = null, qos = 0, paths = []) {
+    constructor($config, $event, origin = null, qos = 0, paths = []) {
         super();
         this.code = Consumer.generateConsumerCode;
         this.origin = origin;
@@ -10,6 +10,7 @@ class Consumer extends ConsumerInterface {
         this.paths = paths;
         this.processing_request_count = 0;
         this.$event = $event;
+        this.$config = $config;
     }
 
     static generateConsumerCode(length = 32) {
@@ -29,19 +30,35 @@ class Consumer extends ConsumerInterface {
             this.processing_request_count++;
             let self = this;
             
-            let config = this.buildRequestConfig(message, io);
-            axios(config).then(function (response) {
+            let requestConfig = this.buildRequestConfig(message, io);
+            axios(requestConfig)
+            .then(function (response) {
                 self.processing_request_count--;
                 message.status = 'DONE';
                 message.last_processed_at = Date.now();
-                self.$event.fire('consumer::done', {message, consumer: self, response, status: 'successful'});
+
+                self.$event.fire('consumer::done', {
+                    message, 
+                    consumer: self, 
+                    response, 
+                    status: 'successful'
+                });
             }).catch(function (error) {
                 self.processing_request_count--;
                 message.status = 'WAITING';
                 if (message.last_processing_at) {
                     message.retry_count++; 
                 }
-                self.$event.fire('consumer::done', {message, consumer: self, response: error.response, status: 'error'});
+
+                self.$event.fire('consumer::done', {
+                    message, 
+                    consumer: self, 
+                    response: {
+                        status: error.response ? error.response.status : 504, // 504 - timeout in proxy
+                        data: error.response ? error.response.data : {message: error.message}
+                    }, 
+                    status: 'error'
+                });
             });
         }
     }
@@ -49,7 +66,8 @@ class Consumer extends ConsumerInterface {
     buildRequestConfig(message, io = null) {
         let retVal = {
             method: message.data.method,
-            url: this.origin + message.data.url
+            url: this.origin + message.data.url,
+            timeout: this.$config.get("consumers.timeout") ? (this.$config.get("consumers.timeout") * 1000) : 0 
         };
 
         let data = null;
