@@ -46,7 +46,7 @@ class Consumer extends ConsumerInterface {
             }).catch(function (error) {
                 self.processing_request_count--;
                 message.status = 'WAITING';
-                if (message.last_processing_at) {
+                if (message.last_processing_at > message.first_processing_at) {
                     message.retry_count++; 
                 }
 
