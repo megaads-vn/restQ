@@ -13,7 +13,7 @@ class QueueServer {
 
         self.$consumerManager.loadConsumers();
         setInterval(function () {
-            self.handleIfAnyConsumerIsIdle()
+            self.handleIfAnyConsumerIsIdle();
         }, 1000);
 
         $event.listen('request::new', function (eventType, io) {
@@ -90,9 +90,8 @@ class QueueServer {
                         method: 'POST',
                         url: responseData.message.postback_url,
                         data: responseData.response.data
-                    }).then(function (response) {
-                        //                    
-                    }).catch(function (error) {
+                    }).then()
+                    .catch(function (error) {
                         console.log('Postback::error: ' + error.message);
                     });
                     producer.io.status(responseData.response.status).json({message: 'done'});

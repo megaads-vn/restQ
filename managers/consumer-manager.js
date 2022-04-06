@@ -12,26 +12,28 @@ class ConsumerManager {
     getConsumer(message) {
         let retVal = null;
 
-        this.consumers.every(function (consumer) {
-            if (consumer.processing_request_count < consumer.qos) {
-                if (message.data.url[0] != '/') {
-                    message.data.url = '/' + message.data.url;
-                }
-
-                let havingAnyValidConsumer = false;
-                consumer.paths.forEach(path => {
-                    let regex = new RegExp(path); 
-                    if (regex.test(message.data.url)) {
-                        retVal = consumer;
-                        havingAnyValidConsumer = true;
+        if (message.data) {
+            this.consumers.every(function (consumer) {
+                if (consumer.processing_request_count < consumer.qos) {
+                    if (message.data.url[0] != '/') {
+                        message.data.url = '/' + message.data.url;
                     }
-                });
-                if (havingAnyValidConsumer) {
-                    return false;
+    
+                    let havingAnyValidConsumer = false;
+                    consumer.paths.forEach(path => {
+                        let regex = new RegExp(path); 
+                        if (regex.test(message.data.url)) {
+                            retVal = consumer;
+                            havingAnyValidConsumer = true;
+                        }
+                    });
+                    if (havingAnyValidConsumer) {
+                        return false;
+                    }
                 }
-            }
-            return true;
-        })
+                return true;
+            })
+        }
 
         return retVal;
     }

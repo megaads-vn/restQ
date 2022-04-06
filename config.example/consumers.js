@@ -1,7 +1,7 @@
 module.exports = {
     retryTime: 5, // 5s
     retryCount: 5,
-    timeout: 5, // 5s
+    timeout: 5, // 5s, if timeout = 0 it means it have no timeout!
     consumers: [
         {
             'name': 'success-consumer',

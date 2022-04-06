@@ -6,6 +6,8 @@ class MessageManager {
     constructor($config) {
         this.retryTime = $config.get('consumers.retryTime');
         this.retryCount = $config.get('consumers.retryCount');
+        let serverStartAt = Date.now();
+        this.updateProcessingMessageAfterServerRestart(serverStartAt);
     }
 
     async push(message) {
@@ -72,6 +74,18 @@ class MessageManager {
 
     async update(message) {
         return knex('message').where('code', message.code).update(message.serialize());
+    }
+
+    updateProcessingMessageAfterServerRestart(serverStartAt) {
+        knex('message')
+            .where('status', 'PROCESSING')
+            .where('last_processing_at', '<', serverStartAt)
+            .update({
+                status: 'FAILED'
+            }).then()
+            .catch(function (error) {
+                console.log('updateProcessingMessageAfterServerRestart::error: ' + error.message);
+            });
     }
 }
 
