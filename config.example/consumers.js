@@ -1,6 +1,6 @@
 module.exports = {
-    retryTime: 5, // 0s
-    retry_count: 5,
+    retryTime: 5, // 5s
+    retryCount: 5,
     consumers: [
         {
             'name': 'success-consumer',

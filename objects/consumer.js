@@ -24,7 +24,7 @@ class Consumer extends ConsumerInterface {
         return retVal;
     }
 
-    async consume(message) {
+    async consume(message, io = null) {
         if (message.data && message.data.url && message.data.method) {
             this.processing_request_count++;
             let self = this;
@@ -36,12 +36,17 @@ class Consumer extends ConsumerInterface {
                 data = message.data.payload;
             }
             
+            let headers = {};
+            if (io) {
+                headers = io.request.headers;
+                headers["x-forwarded-for"] = io.request.connection.remoteAddress
+            }
             axios({
                 method: message.data.method,
                 url: self.origin + message.data.url,
-                data: data
+                data: data,
+                headers: headers
             }).then(function (response) {
-                console.log('hefs');
                 self.processing_request_count--;
                 message.status = 'DONE';
                 message.last_processed_at = Date.now();

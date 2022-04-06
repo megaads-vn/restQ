@@ -1,5 +1,5 @@
 class ConsumerInterface {
-    consume(message) {
+    consume(message, io) {
         throw new Error("ConsumerInterface: function Consume is not implemented!");
     }
 }

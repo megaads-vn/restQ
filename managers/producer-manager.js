@@ -1,15 +1,9 @@
 const Producer = require(__dir + "/objects/producer");
-const event = require(__dir + "/core/app/event");
 
 class ProducerManager {
-    constructor($event) {
+    constructor() {
         let self = this;
-
         self.producers = [];
-
-        $event.listen('message::publish', function (eventType, messageInfo) {
-            self.push(messageInfo);
-        })
     }
 
     getProducer(messageCode) {
@@ -32,4 +26,4 @@ class ProducerManager {
     }
 }
 
-module.exports = new ProducerManager(event);
+module.exports = new ProducerManager();

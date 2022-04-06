@@ -63,12 +63,12 @@ class Message {
 
     static buildMessageFromIO(io) {
         let retVal = new Message();
+        
         retVal.data = {
             url: io.request.url,
             method: io.request.method,
-            payload: io.request.inputs
+            payload: Object.assign({}, io.request.inputs)
         };
-        delete retVal.data.payload._;
         retVal.path = io.request.url;
         retVal.priority = io.request.inputs.priority ?? 0;
         retVal.postback_url = io.request.inputs.postback_url ?? null;

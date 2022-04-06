@@ -32,8 +32,9 @@ class QueueServer {
             self.$messageManager.getMessageBy(null).then(function (message) {
                 if (message) {
                     let consumer = self.$consumerManager.getConsumer(message);
+                    let producer = self.$producerManager.getProducer(message.code);
                     if (consumer) {
-                        self.feedConsumerAMessage(consumer, message);
+                        self.feedConsumerAMessage(consumer, message, producer ? producer.io : null);
                     }
                 }
             });
@@ -42,7 +43,7 @@ class QueueServer {
 
     async publish(io) {
         let messageObject = Message.buildMessageFromIO(io);
-        this.$event.fire('message::publish', {io, message: messageObject});
+        await this.$producerManager.push({io, message: messageObject})
 
         await this.$messageManager.push(messageObject);
         let message = await this.$messageManager.getMessageBy({code: messageObject.code});
@@ -50,16 +51,15 @@ class QueueServer {
         let consumer = this.$consumerManager.getConsumer(message);
 
         if (consumer) {
-
-            this.feedConsumerAMessage(consumer, message);
+            this.feedConsumerAMessage(consumer, message, io);
         } else {
             message.status = 'WAITING';
             await this.$messageManager.update(message);
         }
     }
 
-    async feedConsumerAMessage(consumer, message) {
-        consumer.consume(message);
+    async feedConsumerAMessage(consumer, message, io) {
+        consumer.consume(message, io);
     }
 
     async handleResponseFromConsumer(data) {
@@ -68,7 +68,8 @@ class QueueServer {
         let consumer = data.consumer;
         let message = await this.$messageManager.getMessageBy({paths: consumer.paths});
         if (message) {
-            this.feedConsumerAMessage(consumer, message);
+            let producer = this.$producerManager.getProducer(message.code);
+            this.feedConsumerAMessage(consumer, message, producer ? producer.io : null);
         }
         if (data.status == 'successful') {
             this.respond(data);
