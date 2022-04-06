@@ -13,7 +13,7 @@ function HttpConnection() {
     this.methods = ["get", "post", "put", "delete", "options"];
     this.requestCallbacks = [];
     this.assetAPI = null;
-    this.init = function() {
+    this.init = function () {
         this.initRequestCallbacks();
     }
     this.listen = function (httpServer) {
@@ -25,58 +25,38 @@ function HttpConnection() {
         // Pass to listeners
         var self = this;
         var url = req.url;
-        if (req.method === "GET") {
-            var contentType = req.headers["content-type"];
-            var callback = getCallback.bind(this)("GET", url);
+        var body = "";
+        var contentType = req.headers["content-type"];
+        req.on("data", function (data) {
+            body += data;
+            // Too much POST data, close the connection!
+            if (body.length > 1e6)
+                req.connection.destroy();
+        });
+        req.on("end", function () {
+            var callback = getCallback.bind(self)(req.method, url);
             if (callback.fn != null) {
                 req.inputs = callback.urlInputs;
-                var inputs = getInputs(url, "GET", contentType);
+                var inputs = getInputs(body == "" ? null : body, url, req.method, contentType);
                 for (var property in inputs) {
                     req.inputs[property] = inputs[property];
                 }
                 req.baseUrl = getBaseUrl(url);
-                callback.fn(req, res, url);
+                callback.fn(req, res);
             } else {
-                res.writeHead(404, {"Content-Type": "application/json"});
+                res.writeHead(404, { "Content-Type": "application/json" });
                 res.end(JSON.stringify({
                     status: 404,
                     result: "page not found"
                 }));
             }
-        } else {
-            var body = "";
-            var contentType = req.headers["content-type"];
-            req.on("data", function (data) {
-                body += data;
-                // Too much POST data, close the connection!
-                if (body.length > 1e6)
-                    req.connection.destroy();
-            });
-            req.on("end", function () {
-                var callback = getCallback.bind(self)(req.method, url);
-                if (callback.fn != null) {
-                    req.inputs = callback.urlInputs;
-                    var inputs = getInputs(body, req.method, contentType);
-                    for (var property in inputs) {
-                        req.inputs[property] = inputs[property];
-                    }
-                    req.baseUrl = getBaseUrl(url);
-                    callback.fn(req, res);
-                } else {
-                    res.writeHead(404, {"Content-Type": "application/json"});
-                    res.end(JSON.stringify({
-                        status: 404,
-                        result: "page not found"
-                    }));
-                }
-            });
-        }
+        });
     };
-    this.initRequestCallbacks = function() {
+    this.initRequestCallbacks = function () {
         var self = this;
         for (var i = 0; i < self.methods.length; i++) {
             var method = self.methods[i];
-            self[method] = function(method) {
+            self[method] = function (method) {
                 return function (url, callback) {
                     self.addRequestCallback(method, url, callback);
                 };
@@ -100,7 +80,7 @@ function HttpConnection() {
     }
     function getCallback(method, url) {
         var retval = {
-            urlInputs: [],
+            urlInputs: {},
             url: url,
             fn: null
         };
@@ -137,22 +117,24 @@ function HttpConnection() {
         }
         return retval;
     }
-    function getInputs(inputString, method, contentType) {
+    function getInputs(body, inputString, method, contentType) {
         var retval = {};
-        if (contentType != null && contentType.indexOf("json") > 0) {
-            retval = JSON.parse(inputString);
-        } else {
-            if (method !== "GET") {
-                inputString = "?" + inputString;
-            }
+        if (inputString != null) {
             try {
                 inputString = decodeURIComponent(inputString);
                 inputString.replace(/[?&]+([^=&]+)=([^&]*)/gi,
-                     function (m, key, value) {
-                         retval[key] = value;
-                     }
-                 );
-            } catch(exc) {}
+                    function (m, key, value) {
+                        retval[key] = value;
+                    }
+                );
+            } catch (exc) { }
+        }
+        if (body != null) {
+            if (contentType != null && contentType.indexOf("json") > 0) {
+                retval = { ...retval, ...JSON.parse(body) };
+            } else {
+                retval["data-raw"] = body;
+            }
         }
         return retval;
     }
