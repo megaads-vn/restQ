@@ -28,25 +28,9 @@ class Consumer extends ConsumerInterface {
         if (message.data && message.data.url && message.data.method) {
             this.processing_request_count++;
             let self = this;
-
-            let data = null;
-            if (message.data.payload 
-                && Object.keys(message.data.payload).length !== 0
-                && Object.getPrototypeOf(message.data.payload) === Object.prototype) {
-                data = message.data.payload;
-            }
             
-            let headers = {};
-            if (io) {
-                headers = io.request.headers;
-                headers["x-forwarded-for"] = io.request.connection.remoteAddress
-            }
-            axios({
-                method: message.data.method,
-                url: self.origin + message.data.url,
-                data: data,
-                headers: headers
-            }).then(function (response) {
+            let config = this.buildRequestConfig(message, io);
+            axios(config).then(function (response) {
                 self.processing_request_count--;
                 message.status = 'DONE';
                 message.last_processed_at = Date.now();
@@ -60,6 +44,31 @@ class Consumer extends ConsumerInterface {
                 self.$event.fire('consumer::done', {message, consumer: self, response: error.response, status: 'error'});
             });
         }
+    }
+
+    buildRequestConfig(message, io = null) {
+        let retVal = {
+            method: message.data.method,
+            url: this.origin + message.data.url
+        };
+
+        let data = null;
+        if (message.data.payload 
+            && Object.keys(message.data.payload).length !== 0
+            && Object.getPrototypeOf(message.data.payload) === Object.prototype) {
+            data = message.data.payload;
+        }
+        retVal.data = data;
+
+        let headers = {};
+        if (io) {
+            headers = Object.assign({}, io.request.headers);
+            headers["x-forwarded-for"] = io.request.connection.remoteAddress
+            delete headers['content-length'];
+        }
+        retVal.headers = headers;
+
+        return retVal;
     }
 }
 
