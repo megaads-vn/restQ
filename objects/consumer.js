@@ -67,7 +67,7 @@ class Consumer extends ConsumerInterface {
         let retVal = {
             method: message.data.method,
             url: this.origin + message.data.url,
-            timeout: this.$config.get("consumers.timeout") ? (this.$config.get("consumers.timeout") * 1000) : 0 
+            timeout: this.$config.get("consumers.requestTimeout") ? (this.$config.get("consumers.requestTimeout") * 1000) : 0 
         };
 
         let data = null;
