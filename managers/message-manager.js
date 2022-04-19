@@ -5,7 +5,7 @@ const Message = require(__dir + "/objects/message");
 class MessageManager {
     constructor($config) {
         this.retryTime = $config.get('consumers.retryTime');
-        this.retryCount = $config.get('consumers.retryCount');
+        this.maxRetryCount = $config.get('consumers.maxRetryCount');
         let serverStartAt = Date.now();
         this.updateProcessingMessageAfterServerRestart(serverStartAt);
     }
@@ -44,7 +44,7 @@ class MessageManager {
 
             } else if (messageCondition.paths) {
                 retVal = retVal.where('status', 'WAITING')
-                    .where('retry_count', '<', self.retryCount)
+                    .where('retry_count', '<', self.maxRetryCount)
                     .whereRaw(`if ((? >= last_processing_at + retry_count * ? * 1000), 1, 0) = 1`, [
                         Date.now(),
                         self.retryTime
@@ -60,7 +60,7 @@ class MessageManager {
             }
         } else {
             retVal = query.where('status', 'WAITING')
-                .where('retry_count', '<', self.retryCount)
+                .where('retry_count', '<', self.maxRetryCount)
                 .whereRaw(`if ((? >= last_processing_at + retry_count * ? * 1000), 1, 0) = 1`, [
                     Date.now(),
                     self.retryTime

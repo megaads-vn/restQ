@@ -11,6 +11,7 @@ class Consumer extends ConsumerInterface {
         this.processing_request_count = 0;
         this.$event = $event;
         this.$config = $config;
+        this.requestTimeout = $config.get("consumers.defaultRequestTimeout");
     }
 
     static generateConsumerCode(length = 32) {
@@ -25,12 +26,12 @@ class Consumer extends ConsumerInterface {
         return retVal;
     }
 
-    async consume(message, io = null) {
+    async consume(message, requestTimeout, io = null) {
         if (message.data && message.data.url && message.data.method) {
             this.processing_request_count++;
             let self = this;
             
-            let requestConfig = this.buildRequestConfig(message, io);
+            let requestConfig = this.buildRequestConfig(message, requestTimeout, io);
             axios(requestConfig)
             .then(function (response) {
                 self.processing_request_count--;
@@ -63,11 +64,11 @@ class Consumer extends ConsumerInterface {
         }
     }
 
-    buildRequestConfig(message, io = null) {
+    buildRequestConfig(message, requestTimeout = 0, io = null) {
         let retVal = {
             method: message.data.method,
             url: this.origin + message.data.url,
-            timeout: this.$config.get("consumers.requestTimeout") ? (this.$config.get("consumers.requestTimeout") * 1000) : 0 
+            timeout: requestTimeout * 1000 
         };
 
         let data = null;

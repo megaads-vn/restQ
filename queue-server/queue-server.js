@@ -6,7 +6,7 @@ class QueueServer {
         let self = this;
 
         self.$event = $event;
-        self.consumerRetryCount = $config.get('consumers.retryCount');
+        self.consumerMaxRetryCount = $config.get('consumers.maxRetryCount');
         self.$producerManager = $producerManager;
         self.$messageManager = $messageManager;
         self.$consumerManager = $consumerManager;
@@ -59,7 +59,7 @@ class QueueServer {
     }
 
     async feedConsumerAMessage(consumer, message, io) {
-        consumer.consume(message, io);
+        consumer.consume(message, consumer.requestTimeout, io);
     }
 
     async handleResponseFromConsumer(data) {
@@ -75,7 +75,7 @@ class QueueServer {
             this.respond(data);
         } else if (data.status == 'error') {
             this.$messageManager.update(data.message);
-            if (data.message.retry_count >= this.consumerRetryCount) {
+            if (data.message.retry_count >= this.consumerMaxRetryCount) {
                 this.respond(data);
             }
         }

@@ -63,6 +63,7 @@ class ConsumerManager {
             consumer.origin = item.origin;
             consumer.qos = item.qos;
             consumer.paths = item.paths;
+            consumer.requestTimeout = item.requestTimeout ? item.requestTimeout : consumer.requestTimeout
 
             self.consumers.push(consumer);
         });
