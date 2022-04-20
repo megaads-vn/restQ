@@ -7,8 +7,8 @@ function MessageController($event) {
         // default io.inputs.is_callback is 1
         if (typeof io.inputs.is_callback === 'undefined' || io.inputs.is_callback) {
             // return
-            if (!io.inputs.postback_url) {
-                // return to itself
+            if (io.inputs.postback_url) {
+                // return to postback_url
                 noWaitingAndRespondItself(io);
             }
         } else {
