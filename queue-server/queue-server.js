@@ -84,8 +84,12 @@ class QueueServer {
     respond(responseData) {
         let producer = this.$producerManager.getProducer(responseData.message.code);
         if (producer) {
-            if (responseData.message.is_callback) {
+
+            // default responseData.message.is_callback is 1
+            if (typeof responseData.message.is_callback === 'undefined' || responseData.message.is_callback) {
+                // return 
                 if (responseData.message.postback_url) {
+                    // return to postback_url
                     axios({
                         method: 'POST',
                         url: responseData.message.postback_url,
@@ -94,12 +98,12 @@ class QueueServer {
                     .catch(function (error) {
                         console.log('Postback::error: ' + error.message);
                     });
-                    producer.io.status(responseData.response.status).json({message: 'done'});
                 } else {
-                    producer.io.status(responseData.response.status).json(responseData.response.data);
+                    // return to itself
+                    producer.io.status(responseData.response.status).json({
+                        result: responseData.response.data
+                    });
                 }
-            } else {
-                producer.io.status(responseData.response.status).json({message: 'done'});
             }
         }
     }

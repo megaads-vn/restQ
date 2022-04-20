@@ -1,12 +1,14 @@
 const Consumer = require(__dir + "/objects/consumer");
 const config = require(__dir + "/core/app/config"); 
-const event = require(__dir + "/core/app/event"); 
+const event = require(__dir + "/core/app/event");
+const logger = (require(__dir + "/core/log/logger-factory")).getLogger();
 
 class ConsumerManager {
-    constructor($config, $event) {
+    constructor($config, $event, $logger) {
         this.consumers = [];
         this.$config = $config;
         this.$event = $event;
+        this.$logger = $logger;
     }
 
     getConsumer(message) {
@@ -59,7 +61,7 @@ class ConsumerManager {
         let consumers = self.$config.get("consumers.consumers");
 
         consumers.forEach(item => {
-            let consumer = new Consumer(self.$config, self.$event);
+            let consumer = new Consumer(self.$config, self.$event, self.$logger);
             consumer.origin = item.origin;
             consumer.qos = item.qos;
             consumer.paths = item.paths;
@@ -85,4 +87,4 @@ class ConsumerManager {
 }
 
 
-module.exports = new ConsumerManager(config, event);
+module.exports = new ConsumerManager(config, event, logger);

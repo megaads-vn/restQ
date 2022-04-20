@@ -1,8 +1,9 @@
 const ConsumerInterface = require(__dir + "/interfaces/consumer-interface");
 const axios = require('axios');
+const urlPackage = require('url');
 
 class Consumer extends ConsumerInterface {
-    constructor($config, $event, origin = null, qos = 0, paths = []) {
+    constructor($config, $event, $logger, origin = null, qos = 0, paths = []) {
         super();
         this.code = Consumer.generateConsumerCode;
         this.origin = origin;
@@ -11,6 +12,7 @@ class Consumer extends ConsumerInterface {
         this.processing_request_count = 0;
         this.$event = $event;
         this.$config = $config;
+        this.$logger = $logger;
         this.requestTimeout = $config.get("consumers.defaultRequestTimeout");
     }
 
@@ -32,6 +34,7 @@ class Consumer extends ConsumerInterface {
             let self = this;
             
             let requestConfig = this.buildRequestConfig(message, requestTimeout, io);
+            process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
             axios(requestConfig)
             .then(function (response) {
                 self.processing_request_count--;
@@ -45,6 +48,8 @@ class Consumer extends ConsumerInterface {
                     status: 'successful'
                 });
             }).catch(function (error) {
+                self.$logger.error('Consume Function: ' + error.message);
+
                 self.processing_request_count--;
                 message.status = 'WAITING';
                 if (message.last_processing_at > message.first_processing_at) {
@@ -65,6 +70,7 @@ class Consumer extends ConsumerInterface {
     }
 
     buildRequestConfig(message, requestTimeout = 0, io = null) {
+        let self = this;
         let retVal = {
             method: message.data.method,
             url: this.origin + message.data.url,
@@ -83,6 +89,9 @@ class Consumer extends ConsumerInterface {
         if (io) {
             headers = Object.assign({}, io.request.headers);
             headers["x-forwarded-for"] = io.request.connection.remoteAddress
+            if (self.origin) {
+                headers["host"] = urlPackage.parse(self.origin).host;
+            }
             delete headers['content-length'];
         }
         retVal.headers = headers;
