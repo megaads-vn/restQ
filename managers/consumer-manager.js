@@ -92,7 +92,7 @@ class ConsumerManager {
 
         this.consumers.every(function (consumer) {
             if (consumer.processing_request_count < consumer.qos) {
-                retVal = true;
+                retVal = consumer;
                 return false;
             }
             return true;

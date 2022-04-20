@@ -29,7 +29,7 @@ class QueueServer {
 
         let anyConsumerIsIdle = self.$consumerManager.havingAnyConsumerIsIdle();
         if (anyConsumerIsIdle) {
-            self.$messageManager.getMessageBy(null).then(function (message) {
+            self.$messageManager.getMessageBy({paths: anyConsumerIsIdle.paths}).then(function (message) {
                 if (message) {
                     let consumer = self.$consumerManager.getConsumer(message);
                     let producer = self.$producerManager.getProducer(message.code);
