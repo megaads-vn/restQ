@@ -100,9 +100,7 @@ class QueueServer {
                     });
                 } else {
                     // return to itself
-                    producer.io.status(responseData.response.status).json({
-                        result: responseData.response.data
-                    });
+                    producer.io.status(responseData.response.status).json(responseData.response.data);
                 }
             }
         }
