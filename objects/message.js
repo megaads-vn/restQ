@@ -1,5 +1,5 @@
 class Message {
-    constructor(data = null, postback_url = null, is_callback = 0, priority = 0) {
+    constructor(data = null, postback_url = null, is_callback = 1, priority = 0) {
         this.code = Message.generateMessageCode(32);
         this.status = 'WAITING';
         this.data = data;
@@ -72,7 +72,12 @@ class Message {
         retVal.path = io.request.url;
         retVal.priority = io.request.inputs.priority ?? 0;
         retVal.postback_url = io.request.inputs.postback_url ?? null;
-        retVal.is_callback = io.request.inputs.is_callback ? 1 : 0;
+
+        if (typeof io.request.inputs.is_callback === 'undefined' || io.request.inputs.is_callback) {
+            retVal.is_callback = 1;
+        } else {
+            retVal.is_callback = 0;
+        }
         
         return retVal;
     }
