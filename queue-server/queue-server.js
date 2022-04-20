@@ -43,19 +43,53 @@ class QueueServer {
 
     async publish(io) {
         let messageObject = Message.buildMessageFromIO(io);
+
+        let consumer = this.$consumerManager.getConsumer(messageObject, false);
+        if (consumer) {
+            if (typeof io.inputs.is_callback === 'undefined' && typeof consumer.is_callback !== 'undefined') {
+                io.inputs.is_callback = consumer.is_callback;
+            }
+            if (typeof io.inputs.postback_url === 'undefined' && typeof consumer.postback_url !== 'undefined') {
+                io.inputs.postback_url = consumer.postback_url;
+            }
+        }
+        io = this.handleCallbackInRequestFromProducer(io);
+
         await this.$producerManager.push({io, message: messageObject})
 
         await this.$messageManager.push(messageObject);
         let message = await this.$messageManager.getMessageBy({code: messageObject.code});
-        
-        let consumer = this.$consumerManager.getConsumer(message);
+        consumer = this.$consumerManager.getConsumer(message);
 
         if (consumer) {
             this.feedConsumerAMessage(consumer, message, io);
         } else {
             message.status = 'WAITING';
             await this.$messageManager.update(message);
+        } 
+    }
+
+    handleCallbackInRequestFromProducer(io) {
+        // default io.inputs.is_callback is 1
+        if (typeof io.inputs.is_callback === 'undefined' || io.inputs.is_callback) {
+            // return
+            if (io.inputs.postback_url) {
+                // return to postback_url
+                this.noWaitingAndRespondItself(io);
+            }
+        } else {
+            // no return
+            this.noWaitingAndRespondItself(io);
         }
+
+        return io
+    }
+
+    noWaitingAndRespondItself(io) {
+        io.status(200).json({
+            status: 'successful',
+            message: 'queued'
+        });
     }
 
     async feedConsumerAMessage(consumer, message, io) {

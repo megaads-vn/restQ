@@ -8,6 +8,7 @@ class Message {
         this.retry_count = 0;
         this.postback_url = postback_url;
         this.is_callback = is_callback;
+        this.last_consumer = null;
         this.created_at = Date.now();
         this.first_processing_at = 0,
         this.last_processing_at = 0,
@@ -36,6 +37,7 @@ class Message {
             retry_count: this.retry_count,
             postback_url: this.postback_url,
             is_callback: this.is_callback,
+            last_consumer: this.last_consumer,
             created_at: this.created_at,
             first_processing_at: this.first_processing_at,
             last_processing_at: this.last_processing_at,
@@ -53,6 +55,7 @@ class Message {
         retVal.retry_count = data.retry_count ?? retVal.retry_count;
         retVal.postback_url = data.postback_url ?? retVal.postback_url;
         retVal.is_callback = data.is_callback ?? retVal.is_callback;
+        retVal.last_consumer = data.last_consumer ?? retVal.last_consumer;
         retVal.created_at = data.created_at ?? retVal.created_at;
         retVal.first_processing_at = data.first_processing_at ?? retVal.first_processing_at;
         retVal.last_processing_at = data.last_processing_at ?? retVal.last_processing_at;

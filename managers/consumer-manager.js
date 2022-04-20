@@ -11,33 +11,48 @@ class ConsumerManager {
         this.$logger = $logger;
     }
 
-    getConsumer(message) {
+    getConsumer(message, isIdle = true) {
         let retVal = null;
+        let self = this;
 
         if (message.data) {
             this.consumers.every(function (consumer) {
-                if (consumer.processing_request_count < consumer.qos) {
-                    if (message.data.url[0] != '/') {
-                        message.data.url = '/' + message.data.url;
-                    }
-    
-                    let havingAnyValidConsumer = false;
-                    consumer.paths.forEach(path => {
-                        let regex = new RegExp(path); 
-                        if (regex.test(message.data.url)) {
-                            retVal = consumer;
-                            havingAnyValidConsumer = true;
+                if (isIdle) {
+                    if (consumer.processing_request_count < consumer.qos) {
+                        let havingAnyValidConsumer = self.executeGettingConsumer(message, consumer);
+                        if (havingAnyValidConsumer) {
+                            retVal = havingAnyValidConsumer;
+                            return false;
                         }
-                    });
+                    }
+                } else {
+                    let havingAnyValidConsumer = self.executeGettingConsumer(message, consumer);
                     if (havingAnyValidConsumer) {
+                        retVal = havingAnyValidConsumer;
                         return false;
                     }
                 }
+                    
                 return true;
             })
         }
 
         return retVal;
+    }
+
+    executeGettingConsumer(message, consumer) {
+        if (message.data.url[0] != '/') {
+            message.data.url = '/' + message.data.url;
+        }
+        let havingAnyValidConsumer = false;
+        consumer.paths.forEach(path => {
+            let regex = new RegExp(path); 
+            if (regex.test(message.data.url)) {
+                havingAnyValidConsumer = consumer;
+            }
+        });
+
+        return havingAnyValidConsumer;
     }
 
     updateConsumer(consumer) {
@@ -63,6 +78,7 @@ class ConsumerManager {
         consumers.forEach(item => {
             let consumer = new Consumer(self.$config, self.$event, self.$logger);
             consumer.origin = item.origin;
+            consumer.name = item.name;
             consumer.qos = item.qos;
             consumer.paths = item.paths;
             consumer.requestTimeout = item.requestTimeout ? item.requestTimeout : consumer.requestTimeout

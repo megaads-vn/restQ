@@ -40,6 +40,7 @@ class Consumer extends ConsumerInterface {
                 self.processing_request_count--;
                 message.status = 'DONE';
                 message.last_processed_at = Date.now();
+                message.last_consumer = self.name;
 
                 self.$event.fire('consumer::done', {
                     message, 
@@ -55,6 +56,7 @@ class Consumer extends ConsumerInterface {
                 if (message.last_processing_at > message.first_processing_at) {
                     message.retry_count++; 
                 }
+                message.last_consumer = self.name;
 
                 self.$event.fire('consumer::done', {
                     message, 
