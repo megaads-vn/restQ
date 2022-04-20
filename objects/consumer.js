@@ -88,7 +88,13 @@ class Consumer extends ConsumerInterface {
         let headers = {};
         if (io) {
             headers = Object.assign({}, io.request.headers);
-            headers["x-forwarded-for"] = io.request.connection.remoteAddress
+
+            if (io.request.connection && io.request.connection.remoteAddress) {
+                headers["X-Forwarded-For"] = io.request.connection.remoteAddress;
+            } else if (io.request.socket && io.request.socket.remoteAddress) {
+                headers["X-Forwarded-For"] = io.request.socket.remoteAddress;
+            }
+
             if (self.origin) {
                 headers["host"] = urlPackage.parse(self.origin).host;
             }

@@ -7,17 +7,17 @@ function MessageController($event) {
         // default io.inputs.is_callback is 1
         if (typeof io.inputs.is_callback === 'undefined' || io.inputs.is_callback) {
             // return
-            if (io.inputs.postback_url) {
-                // return to postback url
-                this.noWaitingAndRespondItself(io);
+            if (!io.inputs.postback_url) {
+                // return to itself
+                noWaitingAndRespondItself(io);
             }
         } else {
             // no return
-            this.noWaitingAndRespondItself(io);
+            noWaitingAndRespondItself(io);
         }
     }
 
-    this.noWaitingAndRespondItself = function (io) {
+    noWaitingAndRespondItself = function (io) {
         io.status(200).json({
             status: 'successful',
             message: 'queued'
