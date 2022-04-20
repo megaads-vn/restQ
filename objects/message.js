@@ -70,13 +70,13 @@ class Message {
         retVal.data = {
             url: io.request.url,
             method: io.request.method,
-            payload: Object.assign({}, io.request.inputs)
+            payload: Object.assign({}, io.inputs)
         };
         retVal.path = io.request.url;
-        retVal.priority = io.request.inputs.priority ?? 0;
-        retVal.postback_url = io.request.inputs.postback_url ?? null;
+        retVal.priority = io.inputs.priority ?? 0;
+        retVal.postback_url = io.inputs.postback_url ?? null;
 
-        if (typeof io.request.inputs.is_callback === 'undefined' || io.request.inputs.is_callback) {
+        if (typeof io.inputs.is_callback === 'undefined' || (io.inputs.is_callback && io.inputs.is_callback !== '0')) {
             retVal.is_callback = 1;
         } else {
             retVal.is_callback = 0;

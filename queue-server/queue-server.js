@@ -71,7 +71,7 @@ class QueueServer {
 
     handleCallbackInRequestFromProducer(io) {
         // default io.inputs.is_callback is 1
-        if (typeof io.inputs.is_callback === 'undefined' || io.inputs.is_callback) {
+        if (typeof io.inputs.is_callback === 'undefined' || (io.inputs.is_callback && io.inputs.is_callback !== '0')) {
             // return
             if (io.inputs.postback_url) {
                 // return to postback_url
