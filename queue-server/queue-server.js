@@ -56,6 +56,7 @@ class QueueServer {
         this.handleCallbackInRequestFromProducer(io);
 
         messageObject.is_callback = io.inputs.is_callback;
+        messageObject.postback_url = io.inputs.postback_url;
         await this.$producerManager.push({io, message: messageObject})
 
         await this.$messageManager.push(messageObject);
