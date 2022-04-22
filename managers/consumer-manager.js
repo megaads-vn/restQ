@@ -82,7 +82,9 @@ class ConsumerManager {
             consumer.qos = item.qos;
             consumer.paths = item.paths;
             consumer.requestTimeout = item.requestTimeout ? item.requestTimeout : consumer.requestTimeout
-
+            consumer.is_callback = item.is_callback;
+            consumer.postback_url = item.postback_url;
+            
             self.consumers.push(consumer);
         });
     }

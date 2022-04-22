@@ -53,8 +53,9 @@ class QueueServer {
                 io.inputs.postback_url = consumer.postback_url;
             }
         }
-        io = this.handleCallbackInRequestFromProducer(io);
+        this.handleCallbackInRequestFromProducer(io);
 
+        messageObject.is_callback = io.inputs.is_callback;
         await this.$producerManager.push({io, message: messageObject})
 
         await this.$messageManager.push(messageObject);
@@ -81,8 +82,6 @@ class QueueServer {
             // no return
             this.noWaitingAndRespondItself(io);
         }
-
-        return io
     }
 
     noWaitingAndRespondItself(io) {
