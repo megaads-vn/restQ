@@ -109,7 +109,7 @@ class QueueServer {
             this.respond(data);
         } else if (data.status == 'error') {
             this.$messageManager.update(data.message);
-            if (data.message.retry_count >= this.consumerMaxRetryCount) {
+            if (data.errorCode === 'ECONNABORTED' || (data.errorCode !== 'ECONNABORTED' && data.message.retry_count >= this.consumerMaxRetryCount)) {
                 this.respond(data);
             }
         }

@@ -51,8 +51,13 @@ class Consumer extends ConsumerInterface {
             }).catch(function (error) {
                 self.$logger.error('Consume Function: ' + error.message);
 
+                if (error.code === 'ECONNABORTED') {
+                    message.status = 'FAILED';
+                } else {
+                    message.status = 'WAITING';
+                }
+
                 self.processing_request_count--;
-                message.status = 'WAITING';
                 if (message.last_processing_at > message.first_processing_at) {
                     message.retry_count++; 
                 }
@@ -63,9 +68,10 @@ class Consumer extends ConsumerInterface {
                     consumer: self, 
                     response: {
                         status: error.response ? error.response.status : 504, // 504 - timeout in proxy
-                        data: error.response ? error.response.data : {message: error.message}
+                        data: error.response ? error.response.data : {status: 'failed', message: error.message}
                     }, 
-                    status: 'error'
+                    status: 'error',
+                    errorCode: error.code
                 });
             });
         }
