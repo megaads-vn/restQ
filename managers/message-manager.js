@@ -1,7 +1,7 @@
-const config = require(__dir + "/core/app/config"); 
+const config = require(__dir + "/core/app/config");
 const knex = require('knex')(config.get("database"));
 const Message = require(__dir + "/objects/message");
-
+var lock = new (require('async-lock'))({maxPending: 100000});
 class MessageManager {
     constructor($config) {
         this.retryTime = $config.get('consumers.retryTime');
@@ -11,27 +11,28 @@ class MessageManager {
     }
 
     async push(message) {
-        return knex('message').insert(message.serialize());
+        return await knex('message').insert(message.serialize());
     }
-
-    async getMessageBy(messageCondition = null) {
-        let retVal = null;
-
-        let query = knex('message');
-        let messageRecord = await this.buildQueryByCondition(query, messageCondition).first();
-        if (messageRecord) {
-            messageRecord.status = 'PROCESSING';
-            let now = Date.now();
-            if (!messageRecord.first_processing_at) {
-                messageRecord.first_processing_at = now;
-            }
-            messageRecord.last_processing_at = now;
-
-            retVal = Message.buildMessageFromDatabaseRecord(messageRecord);
-            await this.update(retVal);
-        }
-
-        return retVal;
+    async getMessageBy(messageCondition = null, callbackFn = null) {
+        var self = this;
+        lock.acquire("message-lock", async function (done) {
+                let retVal = null;
+                let query = knex('message');
+                let messageRecord = await self.buildQueryByCondition(query, messageCondition).first();
+                if (messageRecord) {
+                    messageRecord.status = 'PROCESSING';
+                    let now = Date.now();
+                    if (!messageRecord.first_processing_at) {
+                        messageRecord.first_processing_at = now;
+                    }
+                    messageRecord.last_processing_at = now;
+    
+                    retVal = Message.buildMessageFromDatabaseRecord(messageRecord);
+                    await self.update(retVal);
+                }            
+                callbackFn(retVal);
+            done();
+        }, function () {});
     }
 
     buildQueryByCondition(query, messageCondition) {
@@ -40,8 +41,7 @@ class MessageManager {
         let self = this;
         if (messageCondition) {
             if (messageCondition.code) {
-                retVal = retVal.where('code', messageCondition.code);
-
+                retVal = retVal.where('code', messageCondition.code).where('status', 'WAITING');
             } else if (messageCondition.paths) {
                 retVal = retVal.where('status', 'WAITING')
                     .where('retry_count', '<', self.maxRetryCount)
@@ -49,7 +49,7 @@ class MessageManager {
                         Date.now(),
                         self.retryTime
                     ])
-                    .where(function() {
+                    .where(function () {
                         let self = this;
                         messageCondition.paths.forEach(path => {
                             self.orWhere('path', 'REGEXP', path);
@@ -68,21 +68,21 @@ class MessageManager {
                 .orderBy('priority', 'desc')
                 .orderBy('retry_count', 'asc');
         }
-
         return retVal;
     }
 
     async update(message) {
-        return knex('message').where('code', message.code).update(message.serialize());
+        return await knex('message').where('code', message.code).update(message.serialize());
     }
 
-    updateProcessingMessageAfterServerRestart(serverStartAt) {
+    async updateProcessingMessageAfterServerRestart(serverStartAt) {
         knex('message')
             .where('status', 'PROCESSING')
             .where('last_processing_at', '<', serverStartAt)
             .update({
                 status: 'FAILED'
-            }).then()
+            })
+            .then()
             .catch(function (error) {
                 console.log('updateProcessingMessageAfterServerRestart::error: ' + error.message);
             });

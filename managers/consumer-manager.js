@@ -15,26 +15,25 @@ class ConsumerManager {
         let retVal = null;
         let self = this;
 
-        if (message.data) {
-            this.consumers.every(function (consumer) {
+        if (message!= null && message.data) {
+            for (let index = 0; index < this.consumers.length; index++) {
+                const consumer = this.consumers[index];
                 if (isIdle) {
                     if (consumer.processing_request_count < consumer.qos) {
                         let havingAnyValidConsumer = self.executeGettingConsumer(message, consumer);
                         if (havingAnyValidConsumer) {
                             retVal = havingAnyValidConsumer;
-                            return false;
+                            break;
                         }
                     }
                 } else {
                     let havingAnyValidConsumer = self.executeGettingConsumer(message, consumer);
                     if (havingAnyValidConsumer) {
                         retVal = havingAnyValidConsumer;
-                        return false;
+                        break;
                     }
                 }
-                    
-                return true;
-            })
+            }
         }
 
         return retVal;

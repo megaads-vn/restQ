@@ -4,7 +4,6 @@ const axios = require('axios');
 class QueueServer {
     constructor($event, $config, $producerManager, $messageManager, $consumerManager) {
         let self = this;
-
         self.$event = $event;
         self.consumerMaxRetryCount = $config.get('consumers.maxRetryCount');
         self.$producerManager = $producerManager;
@@ -26,15 +25,21 @@ class QueueServer {
 
     handleIfAnyConsumerIsIdle() {
         let self = this;
-
         let anyConsumerIsIdle = self.$consumerManager.havingAnyConsumerIsIdle();
         if (anyConsumerIsIdle) {
-            self.$messageManager.getMessageBy({paths: anyConsumerIsIdle.paths}).then(function (message) {
-                if (message) {
-                    let consumer = self.$consumerManager.getConsumer(message);
-                    let producer = self.$producerManager.getProducer(message.code);
+            self.$messageManager.getMessageBy({paths: anyConsumerIsIdle.paths}, function (msg) {    
+                if (msg) {
+                    let consumer = self.$consumerManager.getConsumer(msg);
+                    let producer = self.$producerManager.getProducer(msg.code);
                     if (consumer) {
-                        self.feedConsumerAMessage(consumer, message, producer ? producer.io : null);
+                        self.feedConsumerAMessage(consumer, msg, producer ? producer.io : null);
+                    } else {
+                        if (msg.retry_count == 0) {
+                            msg.first_processing_at = 0;
+                            msg.last_processing_at = 0;
+                        }                         
+                        msg.status = 'WAITING';
+                        self.$messageManager.update(msg);
                     }
                 }
             });
@@ -42,6 +47,7 @@ class QueueServer {
     }
 
     async publish(io) {
+        let self = this;
         let messageObject = Message.buildMessageFromIO(io);
 
         let consumer = this.$consumerManager.getConsumer(messageObject, false);
@@ -60,15 +66,21 @@ class QueueServer {
         await this.$producerManager.push({io, message: messageObject})
 
         await this.$messageManager.push(messageObject);
-        let message = await this.$messageManager.getMessageBy({code: messageObject.code});
-        consumer = this.$consumerManager.getConsumer(message);
-
-        if (consumer) {
-            this.feedConsumerAMessage(consumer, message, io);
-        } else {
-            message.status = 'WAITING';
-            await this.$messageManager.update(message);
-        } 
+            self.$messageManager.getMessageBy({code: messageObject.code}, function(msg) {
+                if (msg != null) {
+                    consumer = self.$consumerManager.getConsumer(msg);
+                    if (consumer) {
+                        self.feedConsumerAMessage(consumer, msg, io);
+                    } else {
+                        if (msg.retry_count == 0) {
+                            msg.first_processing_at = 0;
+                            msg.last_processing_at = 0;
+                        } 
+                        msg.status = 'WAITING';                            
+                        self.$messageManager.update(msg);
+                    }
+                }       
+            });
     }
 
     handleCallbackInRequestFromProducer(io) {
@@ -98,17 +110,18 @@ class QueueServer {
 
     async handleResponseFromConsumer(data) {
         await this.$messageManager.update(data.message);
-
+        let self = this;
         let consumer = data.consumer;
-        let message = await this.$messageManager.getMessageBy({paths: consumer.paths});
-        if (message) {
-            let producer = this.$producerManager.getProducer(message.code);
-            this.feedConsumerAMessage(consumer, message, producer ? producer.io : null);
-        }
+            self.$messageManager.getMessageBy({paths: consumer.paths}, function (message) {
+                if (message != null) {
+                    let producer = self.$producerManager.getProducer(message.code);
+                    self.feedConsumerAMessage(consumer, message, producer ? producer.io : null);
+                }
+            });    
         if (data.status == 'successful') {
             this.respond(data);
         } else if (data.status == 'error') {
-            this.$messageManager.update(data.message);
+            await this.$messageManager.update(data.message);
             if (data.errorCode === 'ECONNABORTED' || (data.errorCode !== 'ECONNABORTED' && data.message.retry_count >= this.consumerMaxRetryCount)) {
                 this.respond(data);
             }
@@ -128,7 +141,8 @@ class QueueServer {
                         method: 'POST',
                         url: responseData.message.postback_url,
                         data: responseData.response.data
-                    }).then()
+                    })
+                    .then()
                     .catch(function (error) {
                         console.log('Postback::error: ' + error.message);
                     });
