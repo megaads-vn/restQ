@@ -56,7 +56,8 @@ class MessageManager {
                         });
                     })
                     .orderBy('priority', 'desc')
-                    .orderBy('retry_count', 'asc');
+                    .orderBy('retry_count', 'asc')
+                    .orderBy('id', 'asc');
             }
         } else {
             retVal = query.where('status', 'WAITING')
@@ -66,7 +67,8 @@ class MessageManager {
                     self.retryTime
                 ])
                 .orderBy('priority', 'desc')
-                .orderBy('retry_count', 'asc');
+                .orderBy('retry_count', 'asc')
+                .orderBy('id', 'asc');
         }
         return retVal;
     }
