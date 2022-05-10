@@ -59,7 +59,7 @@ class QueueServer {
                 io.inputs.postback_url = consumer.postback_url;
             }
         }
-        this.handleCallbackInRequestFromProducer(io);
+        this.handleCallbackInRequestFromProducer(io, messageObject);
 
         messageObject.is_callback = io.inputs.is_callback;
         messageObject.postback_url = io.inputs.postback_url;
@@ -83,24 +83,26 @@ class QueueServer {
             });
     }
 
-    handleCallbackInRequestFromProducer(io) {
+    handleCallbackInRequestFromProducer(io, messageObject) {
         // default io.inputs.is_callback is 1
         if (typeof io.inputs.is_callback === 'undefined' || (io.inputs.is_callback && io.inputs.is_callback !== '0')) {
             // return
             if (io.inputs.postback_url) {
                 // return to postback_url
-                this.noWaitingAndRespondItself(io);
+                this.noWaitingAndRespondItself(io, messageObject);
             }
         } else {
             // no return
-            this.noWaitingAndRespondItself(io);
+            this.noWaitingAndRespondItself(io, messageObject);
         }
     }
 
-    noWaitingAndRespondItself(io) {
+    noWaitingAndRespondItself(io, messageObject) {
         io.status(200).json({
-            status: 'successful',
-            message: 'queued'
+            status: 'queued',
+            result: {
+                message_code: messageObject.code,
+            }
         });
     }
 
