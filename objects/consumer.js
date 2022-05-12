@@ -42,7 +42,7 @@ class Consumer extends ConsumerInterface {
                 message.last_processed_at = Date.now();
                 message.last_consumer = self.name;
 
-                self.$event.fire('consumer::done', {
+                self.$event.fire('consumer::response', {
                     message, 
                     consumer: self, 
                     response, 
@@ -63,7 +63,7 @@ class Consumer extends ConsumerInterface {
                 }
                 message.last_consumer = self.name;
 
-                self.$event.fire('consumer::done', {
+                self.$event.fire('consumer::response', {
                     message, 
                     consumer: self, 
                     response: {

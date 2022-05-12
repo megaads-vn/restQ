@@ -1,7 +1,10 @@
 module.exports = function ($route, $logger) {
     /** Register HTTP requests **/    
     $route.get("/", "HomeController@welcome");
+    $route.get("/favicon.ico", "HomeController@welcome");
     $route.get("/message/(:code)", "MessageController@get");
+    $route.any("/monitor/start", "MonitorController@start");
+    $route.any("/monitor/stop", "MonitorController@stop");    
     $route.any("/*", "MessageController@onRequest", {
         before: function (io) {
             io.header("Access-Control-Allow-Origin", "*")

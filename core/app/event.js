@@ -19,7 +19,37 @@ function Event() {
         if (listenerContainer[event] == null) {
             listenerContainer[event] = [];
         }
-        listenerContainer[event].push(listener);
+        var isExisted = false;
+        for (var i = 0; i < listenerContainer[event].length; i++) {
+            if (listenerContainer[event][i] === listener) {
+                isExisted = true;
+                break;
+            }            
+        }
+        if (!isExisted) {
+            listenerContainer[event].push(listener);
+        }
+    };
+    /**
+     * Unsubscribe a event
+     * @param {String} event Supporting widcard
+     * @param {String|function} listener
+     * @returns {Boolean}
+     */
+    this.unlisten = function (event, listener) {
+        var retval = false;
+        var listeners = listenerContainer[event];
+        if (listeners != null) {
+            for (let index = 0; index < listeners.length; index++) {
+                const listenerItem = listeners[index];
+                if (listenerItem === listener) {
+                    listeners.splice(index, 1);
+                    retval = true;
+                    break;
+                }
+            }
+        }        
+        return retval;
     };
     /**
      * Publish a event
@@ -29,7 +59,7 @@ function Event() {
     this.fire = function (event, params) {
         for (var eventListener in listenerContainer) {
             if (event.matchWildcard(eventListener)) {
-                listeners = listenerContainer[eventListener];
+                var listeners = listenerContainer[eventListener];
                 listeners.forEach(function (listener) {
                     if (typeof listener === "string") {
                         listener = autoLoader.getAction(listener);

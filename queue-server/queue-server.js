@@ -1,25 +1,124 @@
 const Message = require(__dir + "/objects/message");
 const axios = require('axios');
-
+var queueServerInstance = null;
 class QueueServer {
     constructor($event, $config, $producerManager, $messageManager, $consumerManager) {
+        this.isRunning = false;
+        this.$event = $event;
+        this.consumerMaxRetryCount = $config.get('consumers.maxRetryCount');
+        this.$producerManager = $producerManager;
+        this.$messageManager = $messageManager;
+        this.$consumerManager = $consumerManager;
+        queueServerInstance = this;
+        this.interval = null;
+        this.$event.listen('consumer::response', this.onConsumerResponse);
+        this.start();
+    }
+
+    start() {
+        if (!this.isRunning) {
+            this.$consumerManager.loadConsumers();
+            // interval
+            let self = this;
+            this.interval = setInterval(function () {
+                self.handleIfAnyConsumerIsIdle();
+            }, 1000);
+            // message::publish
+            this.$event.listen('message::push', this.onNewMessage);
+            // consumer
+            this.$event.listen('consumer::done', this.onConsumerDone);
+            this.isRunning = true;
+            return true;
+        }        
+        return false; 
+    }
+
+    stop() {        
+        if (this.isRunning) {
+            // handleIfAnyConsumerIsIdle Interval
+            if (this.interval != null) {
+                clearInterval(this.interval);
+            }
+            // message::publish
+            this.$event.unlisten('message::push', this.onNewMessage);
+            // consumer
+            this.$event.unlisten('consumer::done', this.onConsumerDone);
+            this.isRunning = false;
+            return true;
+        }        
+        return false;
+    }
+
+    
+    reload() {
+        this.stop();
+        this.start();
+    }
+
+    async publish(io) {
         let self = this;
-        self.$event = $event;
-        self.consumerMaxRetryCount = $config.get('consumers.maxRetryCount');
-        self.$producerManager = $producerManager;
-        self.$messageManager = $messageManager;
-        self.$consumerManager = $consumerManager;
+        let messageObject = Message.buildMessageFromIO(io);
+        let consumer = this.$consumerManager.getConsumer(messageObject, false);
+        if (consumer) {
+            if (typeof io.inputs.is_callback === 'undefined' && typeof consumer.is_callback !== 'undefined') {
+                io.inputs.is_callback = consumer.is_callback;
+            }
+            if (typeof io.inputs.postback_url === 'undefined' && typeof consumer.postback_url !== 'undefined') {
+                io.inputs.postback_url = consumer.postback_url;
+            }
+        }
+        this.handleCallbackInRequestFromProducer(io, messageObject);
 
-        self.$consumerManager.loadConsumers();
-        setInterval(function () {
-            self.handleIfAnyConsumerIsIdle();
-        }, 1000);
+        messageObject.is_callback = io.inputs.is_callback;
+        messageObject.postback_url = io.inputs.postback_url;
+        await this.$producerManager.push({io, message: messageObject})
 
-        $event.listen('request::new', function (eventType, io) {
-            self.publish(io);
+        await this.$messageManager.push(messageObject);
+        //TODO: should        
+        this.$event.fire('message::push', messageObject);
+    }
+
+    async onConsumerResponse(eventType, data) {
+        let self = queueServerInstance;
+        await self.$messageManager.update(data.message);
+        self.$event.fire('consumer::done', data.consumer)
+        if (data.status == 'successful') {
+            self.respond(data);
+        } else if (data.status == 'error') {
+            await self.$messageManager.update(data.message);
+            if (data.errorCode === 'ECONNABORTED' || (data.errorCode !== 'ECONNABORTED' && data.message.retry_count >= this.consumerMaxRetryCount)) {
+                self.respond(data);
+            }
+        }
+    }
+
+    onConsumerDone(eventType, consumer) {
+        let self = queueServerInstance;
+        self.$messageManager.getMessageBy({paths: consumer.paths}, function (message) {
+            if (message != null) {
+                let producer = self.$producerManager.getProducer(message.code);
+                self.feedConsumerAMessage(consumer, message, producer ? producer.io : null);
+            }
         });
-        $event.listen('consumer::done', function (eventType, data) {
-            self.handleResponseFromConsumer(data);
+    }
+
+    onNewMessage(eventType, messageObject) {
+        let self = queueServerInstance;
+        self.$messageManager.getMessageBy({'code': messageObject.code}, function(msg) {
+            if (msg != null) {
+                let consumer = self.$consumerManager.getConsumer(msg);
+                if (consumer) {
+                    let producer = self.$producerManager.getProducer(msg.code);
+                    self.feedConsumerAMessage(consumer, msg, producer.io);
+                } else {
+                    if (msg.retry_count == 0) {
+                        msg.first_processing_at = 0;
+                        msg.last_processing_at = 0;
+                    }
+                    msg.status = 'WAITING';
+                    self.$messageManager.update(msg);
+                }
+            }       
         });
     }
 
@@ -44,44 +143,7 @@ class QueueServer {
                 }
             });
         }
-    }
-
-    async publish(io) {
-        let self = this;
-        let messageObject = Message.buildMessageFromIO(io);
-
-        let consumer = this.$consumerManager.getConsumer(messageObject, false);
-        if (consumer) {
-            if (typeof io.inputs.is_callback === 'undefined' && typeof consumer.is_callback !== 'undefined') {
-                io.inputs.is_callback = consumer.is_callback;
-            }
-            if (typeof io.inputs.postback_url === 'undefined' && typeof consumer.postback_url !== 'undefined') {
-                io.inputs.postback_url = consumer.postback_url;
-            }
-        }
-        this.handleCallbackInRequestFromProducer(io, messageObject);
-
-        messageObject.is_callback = io.inputs.is_callback;
-        messageObject.postback_url = io.inputs.postback_url;
-        await this.$producerManager.push({io, message: messageObject})
-
-        await this.$messageManager.push(messageObject);
-            self.$messageManager.getMessageBy({code: messageObject.code}, function(msg) {
-                if (msg != null) {
-                    consumer = self.$consumerManager.getConsumer(msg);
-                    if (consumer) {
-                        self.feedConsumerAMessage(consumer, msg, io);
-                    } else {
-                        if (msg.retry_count == 0) {
-                            msg.first_processing_at = 0;
-                            msg.last_processing_at = 0;
-                        } 
-                        msg.status = 'WAITING';                            
-                        self.$messageManager.update(msg);
-                    }
-                }       
-            });
-    }
+    }    
 
     handleCallbackInRequestFromProducer(io, messageObject) {
         // default io.inputs.is_callback is 1
@@ -108,27 +170,7 @@ class QueueServer {
 
     async feedConsumerAMessage(consumer, message, io) {
         consumer.consume(message, consumer.requestTimeout, io);
-    }
-
-    async handleResponseFromConsumer(data) {
-        await this.$messageManager.update(data.message);
-        let self = this;
-        let consumer = data.consumer;
-            self.$messageManager.getMessageBy({paths: consumer.paths}, function (message) {
-                if (message != null) {
-                    let producer = self.$producerManager.getProducer(message.code);
-                    self.feedConsumerAMessage(consumer, message, producer ? producer.io : null);
-                }
-            });    
-        if (data.status == 'successful') {
-            this.respond(data);
-        } else if (data.status == 'error') {
-            await this.$messageManager.update(data.message);
-            if (data.errorCode === 'ECONNABORTED' || (data.errorCode !== 'ECONNABORTED' && data.message.retry_count >= this.consumerMaxRetryCount)) {
-                this.respond(data);
-            }
-        }
-    }
+    }    
 
     respond(responseData) {
         let producer = this.$producerManager.getProducer(responseData.message.code);
@@ -150,7 +192,11 @@ class QueueServer {
                     });
                 } else {
                     // return to itself
-                    producer.io.status(responseData.response.status).json(responseData.response.data);
+                    try {
+                        producer.io.status(responseData.response.status).json(responseData.response.data);                        
+                    } catch (error) {
+                        console.log('Response::error: ' + error.message);
+                    }
                 }
             }
         }

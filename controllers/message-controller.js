@@ -1,10 +1,10 @@
 module.exports = MessageController;
 
-function MessageController($event, $config) {
+function MessageController($event, $config, $queueServer) {
     const knex = require('knex')($config.get("database"));
     
     this.onRequest = function (io) {
-        $event.fire('request::new', io);
+        $queueServer.publish(io);
     }
     this.get = async function (io) {
         let message = null;
