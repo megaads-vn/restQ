@@ -22,7 +22,7 @@ class QueueServer {
             let self = this;
             this.interval = setInterval(function () {
                 self.handleIfAnyConsumerIsIdle();
-            }, 1000);
+            }, 30000);
             // message::publish
             this.$event.listen('message::push', this.onNewMessage);
             // consumer
@@ -126,22 +126,25 @@ class QueueServer {
         let self = this;
         let anyConsumerIsIdle = self.$consumerManager.havingAnyConsumerIsIdle();
         if (anyConsumerIsIdle) {
-            self.$messageManager.getMessageBy({paths: anyConsumerIsIdle.paths}, function (msg) {    
-                if (msg) {
-                    let consumer = self.$consumerManager.getConsumer(msg);
-                    let producer = self.$producerManager.getProducer(msg.code);
-                    if (consumer) {
-                        self.feedConsumerAMessage(consumer, msg, producer ? producer.io : null);
-                    } else {
-                        if (msg.retry_count == 0) {
-                            msg.first_processing_at = 0;
-                            msg.last_processing_at = 0;
-                        }                         
-                        msg.status = 'WAITING';
-                        self.$messageManager.update(msg);
+            for (let index = 0; index < anyConsumerIsIdle.length; index++) {
+                const consumer = anyConsumerIsIdle[index];
+                self.$messageManager.getMessageBy({paths: consumer.paths}, function (msg) {    
+                    if (msg) {
+                        let consumer = self.$consumerManager.getConsumer(msg);
+                        let producer = self.$producerManager.getProducer(msg.code);
+                        if (consumer) {
+                            self.feedConsumerAMessage(consumer, msg, producer ? producer.io : null);
+                        } else {
+                            if (msg.retry_count == 0) {
+                                msg.first_processing_at = 0;
+                                msg.last_processing_at = 0;
+                            }                         
+                            msg.status = 'WAITING';
+                            self.$messageManager.update(msg);
+                        }
                     }
-                }
-            });
+                });   
+            }            
         }
     }    
 

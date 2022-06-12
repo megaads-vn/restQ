@@ -90,17 +90,14 @@ class ConsumerManager {
     }
 
     havingAnyConsumerIsIdle() {
-        let retVal = false;
-
-        this.consumers.every(function (consumer) {
+        let retVal = [];
+        for (let index = 0; index < this.consumers.length; index++) {
+            const consumer = this.consumers[index];
             if (consumer.processing_request_count < consumer.qos) {
-                retVal = consumer;
-                return false;
+                retVal.push(consumer);
             }
-            return true;
-        })
-
-        return retVal;
+        }
+        return retVal.length > 0 ? retVal : false;
     }
 }
 
