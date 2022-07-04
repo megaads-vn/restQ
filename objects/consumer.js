@@ -29,7 +29,7 @@ class Consumer extends ConsumerInterface {
     }
 
     async consume(message, requestTimeout, io = null) {
-        if (message.data && message.data.url && message.data.method) {
+        if (this.processing_request_count < this.qos && message.data && message.data.url && message.data.method) {
             this.processing_request_count++;
             let self = this;
             
@@ -73,6 +73,19 @@ class Consumer extends ConsumerInterface {
                     status: 'error',
                     errorCode: error.code
                 });
+            });
+        } else {
+            message.status = 'WAITING';
+            if (message.retry_count == 0) {
+                message.first_processing_at = 0;
+                message.last_processing_at = 0;
+            }
+            self.$event.fire('consumer::response', {
+                message, 
+                consumer: self, 
+                response: {}, 
+                status: 'error',
+                errorCode: 'QOS'
             });
         }
     }

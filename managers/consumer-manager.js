@@ -15,7 +15,7 @@ class ConsumerManager {
         let retVal = null;
         let self = this;
 
-        if (message!= null && message.data) {
+        if (message != null && message.data) {
             for (let index = 0; index < this.consumers.length; index++) {
                 const consumer = this.consumers[index];
                 if (isIdle) {
