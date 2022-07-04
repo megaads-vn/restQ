@@ -86,7 +86,7 @@ class QueueServer {
             self.respond(data);
         } else if (data.status == 'error') {
             await self.$messageManager.update(data.message);
-            if (data.errorCode === 'ECONNABORTED' || (data.errorCode !== 'ECONNABORTED' && data.message.retry_count >= this.consumerMaxRetryCount)) {
+            if (data.errorCode === 'ECONNABORTED' || (data.errorCode !== 'ECONNABORTED' && data.message.retry_count >= self.consumerMaxRetryCount)) {
                 self.respond(data);
             }
         }
