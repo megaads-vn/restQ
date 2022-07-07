@@ -22,7 +22,7 @@ class QueueServer {
             let self = this;
             this.interval = setInterval(function () {
                 self.handleIfAnyConsumerIsIdle();
-            }, 30000);
+            }, 5000);
             // message::publish        
             this.$event.listen('message::push', this.onNewMessage);
             // consumer
