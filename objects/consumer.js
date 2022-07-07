@@ -29,10 +29,16 @@ class Consumer extends ConsumerInterface {
     }
 
     async consume(message, requestTimeout, io = null) {
-        if (this.processing_request_count < this.qos && message.data && message.data.url && message.data.method) {
+        this.$logger.debug('Consume.consume: ' + message.id);
+        this.$logger.debug('- processing_request_count: ' + this.processing_request_count);
+        this.$logger.debug('- qos: ' + this.qos);
+        if (this.processing_request_count < this.qos 
+            && message.data 
+            && message.data.url 
+            && message.data.method
+        ) {
             this.processing_request_count++;
-            let self = this;
-            
+            let self = this;            
             let requestConfig = this.buildRequestConfig(message, requestTimeout, io);
             process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
             axios(requestConfig)
@@ -75,6 +81,9 @@ class Consumer extends ConsumerInterface {
                 });
             });
         } else {
+            this.$logger.debug('Consume.consume - QOS ERROR : ' + message.id);
+            this.$logger.debug('- processing_request_count: ' + this.processing_request_count);
+            this.$logger.debug('- qos: ' + this.qos);
             message.status = 'WAITING';
             if (message.retry_count == 0) {
                 message.first_processing_at = 0;

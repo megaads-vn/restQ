@@ -94,10 +94,20 @@ class QueueServer {
 
     onConsumerDone(eventType, consumer) {
         let self = queueServerInstance;
-        self.$messageManager.getMessageBy({paths: consumer.paths}, function (message) {
-            if (message != null) {
-                let producer = self.$producerManager.getProducer(message.code);
-                self.feedConsumerAMessage(consumer, message, producer ? producer.io : null);
+        self.$messageManager.getMessageBy({paths: consumer.paths}, function (msg) {
+            if (msg != null) {
+                let consumer = self.$consumerManager.getConsumer(msg);
+                if (consumer) {
+                    let producer = self.$producerManager.getProducer(msg.code);
+                    self.feedConsumerAMessage(consumer, msg, producer ? producer.io : null);
+                } else {
+                    if (msg.retry_count == 0) {
+                        msg.first_processing_at = 0;
+                        msg.last_processing_at = 0;
+                    }
+                    msg.status = 'WAITING';
+                    self.$messageManager.update(msg);
+                }
             }
         });
     }
@@ -118,7 +128,7 @@ class QueueServer {
                     msg.status = 'WAITING';
                     self.$messageManager.update(msg);
                 }
-            }       
+            }
         });
     }
 
