@@ -45,18 +45,18 @@ class MessageManager {
             } else if (messageCondition.paths) {
                 retVal = retVal.where('status', 'WAITING')
                     .where('retry_count', '<', self.maxRetryCount)
-                    .whereRaw(`if ((? >= last_processing_at + retry_count * ? * 1000), 1, 0) = 1`, [
-                        Date.now(),
-                        self.retryTime
-                    ])
+                    // .whereRaw(`if ((? >= last_processing_at + retry_count * ? * 1000), 1, 0) = 1`, [
+                    //     Date.now(),
+                    //     self.retryTime
+                    // ])
                     .where(function () {
                         let self = this;
                         messageCondition.paths.forEach(path => {
                             self.orWhere('path', 'REGEXP', path);
                         });
                     })
-                    .orderBy('priority', 'desc')
-                    .orderBy('retry_count', 'asc')
+                    // .orderBy('priority', 'desc')
+                    // .orderBy('retry_count', 'asc')
                     .orderBy('id', 'asc');
             }
         } else {
