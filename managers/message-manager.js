@@ -13,13 +13,14 @@ class MessageManager {
     async push(message) {
         return await knex('message').insert(message.serialize());
     }
-    async getMessageBy(messageCondition = null, callbackFn = null) {
+    async getMessageBy(messageCondition = null, limit = 1, callbackFn = null) {
         var self = this;
         lock.acquire("message-lock", async function (done) {
-                let retVal = null;
+                let retVal = [];
                 let query = knex('message');
-                let messageRecord = await self.buildQueryByCondition(query, messageCondition).first();
-                if (messageRecord) {
+                let messageRecords = await self.buildQueryByCondition(query, messageCondition).offset(0).limit(limit);
+                for (let index = 0; index < messageRecords.length; index++) {
+                    const messageRecord = messageRecords[index];
                     messageRecord.status = 'PROCESSING';
                     let now = Date.now();
                     if (!messageRecord.first_processing_at) {
@@ -27,9 +28,10 @@ class MessageManager {
                     }
                     messageRecord.last_processing_at = now;
     
-                    retVal = Message.buildMessageFromDatabaseRecord(messageRecord);
-                    await self.update(retVal);
-                }            
+                    let messageObj = Message.buildMessageFromDatabaseRecord(messageRecord);
+                    await self.update(messageObj);  
+                    retVal.push(messageObj);
+                }
                 callbackFn(retVal);
             done();
         }, function () {});

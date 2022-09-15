@@ -29,11 +29,11 @@ class QueueServer {
             this.$event.listen('consumer::done', this.onConsumerDone);
             this.isRunning = true;
             return true;
-        }        
-        return false; 
+        }
+        return false;
     }
 
-    stop() {        
+    stop() {
         if (this.isRunning) {
             // handleIfAnyConsumerIsIdle Interval
             if (this.interval != null) {
@@ -45,11 +45,11 @@ class QueueServer {
             this.$event.unlisten('consumer::done', this.onConsumerDone);
             this.isRunning = false;
             return true;
-        }        
+        }
         return false;
     }
 
-    
+
     reload() {
         this.stop();
         this.start();
@@ -71,7 +71,7 @@ class QueueServer {
 
         messageObject.is_callback = io.inputs.is_callback;
         messageObject.postback_url = io.inputs.postback_url;
-        await this.$producerManager.push({io, message: messageObject})
+        await this.$producerManager.push({ io, message: messageObject })
 
         await this.$messageManager.push(messageObject);
         //TODO: should        
@@ -94,8 +94,9 @@ class QueueServer {
 
     onConsumerDone(eventType, consumer) {
         let self = queueServerInstance;
-        self.$messageManager.getMessageBy({paths: consumer.paths}, function (msg) {
-            if (msg != null) {
+        self.$messageManager.getMessageBy({ paths: consumer.paths }, (consumer.qos - consumer.processing_request_count), function (messages) {
+            for (let index = 0; index < messages.length; index++) {
+                let msg = messages[index];
                 let consumer = self.$consumerManager.getConsumer(msg);
                 if (consumer) {
                     let producer = self.$producerManager.getProducer(msg.code);
@@ -114,8 +115,9 @@ class QueueServer {
 
     onNewMessage(eventType, messageObject) {
         let self = queueServerInstance;
-        self.$messageManager.getMessageBy({'code': messageObject.code}, function(msg) {
-            if (msg != null) {
+        self.$messageManager.getMessageBy({ 'code': messageObject.code }, 1, function (messages) {
+            if (messages.length == 1) {
+                let msg = messages[0];
                 let consumer = self.$consumerManager.getConsumer(msg);
                 if (consumer) {
                     let producer = self.$producerManager.getProducer(msg.code);
@@ -136,27 +138,29 @@ class QueueServer {
         let self = this;
         let anyConsumerIsIdle = self.$consumerManager.havingAnyConsumerIsIdle();
         if (anyConsumerIsIdle) {
+            
             for (let index = 0; index < anyConsumerIsIdle.length; index++) {
                 const consumer = anyConsumerIsIdle[index];
-                self.$messageManager.getMessageBy({paths: consumer.paths}, function (msg) {    
-                    if (msg) {
+                self.$messageManager.getMessageBy({ paths: consumer.paths }, (consumer.qos - consumer.processing_request_count), function (messages) {
+                    for (let index = 0; index < messages.length; index++) {
+                        let msg = messages[index];
                         let consumer = self.$consumerManager.getConsumer(msg);
-                        let producer = self.$producerManager.getProducer(msg.code);
                         if (consumer) {
+                            let producer = self.$producerManager.getProducer(msg.code);
                             self.feedConsumerAMessage(consumer, msg, producer ? producer.io : null);
                         } else {
                             if (msg.retry_count == 0) {
                                 msg.first_processing_at = 0;
                                 msg.last_processing_at = 0;
-                            }                         
+                            }
                             msg.status = 'WAITING';
                             self.$messageManager.update(msg);
                         }
                     }
-                });   
-            }            
+                });
+            }
         }
-    }    
+    }
 
     handleCallbackInRequestFromProducer(io, messageObject) {
         // default io.inputs.is_callback is 1
@@ -183,7 +187,7 @@ class QueueServer {
 
     async feedConsumerAMessage(consumer, message, io) {
         consumer.consume(message, consumer.requestTimeout, io);
-    }    
+    }
 
     respond(responseData) {
         let producer = this.$producerManager.getProducer(responseData.message.code);
@@ -199,14 +203,14 @@ class QueueServer {
                         url: responseData.message.postback_url,
                         data: responseData.response.data
                     })
-                    .then()
-                    .catch(function (error) {
-                        console.log('Postback::error: ' + error.message);
-                    });
+                        .then()
+                        .catch(function (error) {
+                            console.log('Postback::error: ' + error.message);
+                        });
                 } else {
                     // return to itself
                     try {
-                        producer.io.status(responseData.response.status).json(responseData.response.data);                        
+                        producer.io.status(responseData.response.status).json(responseData.response.data);
                     } catch (error) {
                         console.log('Response::error: ' + error.message);
                     }
