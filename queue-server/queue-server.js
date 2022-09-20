@@ -201,7 +201,10 @@ class QueueServer {
                     axios({
                         method: 'POST',
                         url: responseData.message.postback_url,
-                        data: responseData.response.data
+                        data: {
+                            request: responseData.message.data,
+                            result: responseData.response.data
+                        }
                     })
                         .then()
                         .catch(function (error) {
@@ -216,6 +219,13 @@ class QueueServer {
                     }
                 }
             }
+        }
+    }
+
+    shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
         }
     }
 }
