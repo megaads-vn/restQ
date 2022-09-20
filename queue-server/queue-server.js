@@ -137,8 +137,8 @@ class QueueServer {
     handleIfAnyConsumerIsIdle() {
         let self = this;
         let anyConsumerIsIdle = self.$consumerManager.havingAnyConsumerIsIdle();
-        if (anyConsumerIsIdle) {
-            
+        if (anyConsumerIsIdle && anyConsumerIsIdle.length > 0) {
+            self.shuffleArray(anyConsumerIsIdle);
             for (let index = 0; index < anyConsumerIsIdle.length; index++) {
                 const consumer = anyConsumerIsIdle[index];
                 self.$messageManager.getMessageBy({ paths: consumer.paths }, (consumer.qos - consumer.processing_request_count), function (messages) {
