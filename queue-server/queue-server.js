@@ -190,28 +190,27 @@ class QueueServer {
     }
 
     respond(responseData) {
-        let producer = this.$producerManager.getProducer(responseData.message.code);
-        if (producer) {
-
-            // default responseData.message.is_callback is 1
-            if (typeof responseData.message.is_callback === 'undefined' || responseData.message.is_callback) {
-                // return 
-                if (responseData.message.postback_url) {
-                    // return to postback_url
-                    axios({
-                        method: 'POST',
-                        url: responseData.message.postback_url,
-                        data: {
-                            request: responseData.message.data,
-                            result: responseData.response.data
-                        }
-                    })
-                        .then()
-                        .catch(function (error) {
-                            console.log('Postback::error: ' + error.message);
-                        });
-                } else {
-                    // return to itself
+        // default responseData.message.is_callback is 1
+        if (typeof responseData.message.is_callback === 'undefined' || responseData.message.is_callback) {
+            // return 
+            if (responseData.message.postback_url) {
+                // return to postback_url
+                axios({
+                    method: 'POST',
+                    url: responseData.message.postback_url,
+                    data: {
+                        request: responseData.message.data,
+                        result: responseData.response.data
+                    }
+                })
+                    .then()
+                    .catch(function (error) {
+                        console.log('Postback::error: ' + error.message);
+                    });
+            } else {
+                // return to itself
+                let producer = this.$producerManager.getProducer(responseData.message.code);
+                if (producer) {
                     try {
                         producer.io.status(responseData.response.status).json(responseData.response.data);
                     } catch (error) {
