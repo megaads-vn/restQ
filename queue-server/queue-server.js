@@ -66,6 +66,9 @@ class QueueServer {
             if (typeof io.inputs.postback_url === 'undefined' && typeof consumer.postback_url !== 'undefined') {
                 io.inputs.postback_url = consumer.postback_url;
             }
+        } else {
+            // messsage's not yet supported
+            io.inputs.is_callback = 0;
         }
         this.handleCallbackInRequestFromProducer(io, messageObject);
 
