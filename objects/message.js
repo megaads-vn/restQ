@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 class Message {
     constructor(data = null, postback_url = null, is_callback = 1, priority = 0) {
         this.code = Message.generateMessageCode(32);
@@ -10,15 +11,16 @@ class Message {
         this.is_callback = is_callback;
         this.last_consumer = null;
         this.created_at = Date.now();
-        this.first_processing_at = 0,
-        this.last_processing_at = 0,
-        this.last_processed_at = 0
+        this.first_processing_at = 0;
+        this.last_processing_at = 0;
+        this.last_processed_at = 0;
+        Message.generateHash(this);
     }
 
     static generateMessageCode(length = 32) {
         let retVal = '';
 
-        const characters  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
         var charactersLength = characters.length;
         for (let i = 0; i < length; i++) {
             retVal += characters.charAt(Math.floor(Math.random() * charactersLength));
@@ -31,6 +33,7 @@ class Message {
         return {
             code: this.code ?? Message.generateMessageCode(32),
             data: this.data ? JSON.stringify(this.data) : null,
+            hash: this.hash,
             path: this.path,
             priority: this.priority,
             status: this.status,
@@ -49,6 +52,7 @@ class Message {
         let retVal = new Message();
         retVal.code = data.code ?? retVal.code;
         retVal.data = data.data ? JSON.parse(data.data) : retVal.data;
+        retVal.hash = data.hash;
         retVal.path = data.path ?? retVal.path;
         retVal.priority = data.priority ?? retVal.priority;
         retVal.status = data.status ?? retVal.status;
@@ -60,13 +64,13 @@ class Message {
         retVal.first_processing_at = data.first_processing_at ?? retVal.first_processing_at;
         retVal.last_processing_at = data.last_processing_at ?? retVal.last_processing_at;
         retVal.last_processed_at = data.last_processed_at ?? retVal.last_processed_at;
-
+        Message.generateHash(retVal);
         return retVal;
     }
 
     static buildMessageFromIO(io) {
         let retVal = new Message();
-        
+
         retVal.data = {
             url: io.request.url,
             method: io.request.method,
@@ -81,9 +85,23 @@ class Message {
         } else {
             retVal.is_callback = 0;
         }
-        
+
+        Message.generateHash(retVal);
+
         return retVal;
     }
+
+    static generateHash(mesage) {
+        if ((mesage.hash == null || mesage.hash == '') && mesage.data != null) {
+            mesage.hash = crypto.createHash('sha1')
+                .update(JSON.stringify(mesage.data))
+                .digest('hex');
+        } else if (mesage.data == null) {
+            mesage.hash = null
+        }
+        return mesage;
+    }
+
 }
 
 module.exports = Message;

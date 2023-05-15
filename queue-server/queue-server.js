@@ -70,12 +70,14 @@ class QueueServer {
             // messsage's not yet supported
             io.inputs.is_callback = 0;
         }
-        this.handleCallbackInRequestFromProducer(io, messageObject);
+        let isWaitingAResponse = this.handleCallbackInRequestFromProducer(io, messageObject);
 
         messageObject.is_callback = io.inputs.is_callback;
         messageObject.postback_url = io.inputs.postback_url;
-        await this.$producerManager.push({ io, message: messageObject })
-
+        
+        if (isWaitingAResponse) {
+            await this.$producerManager.push({ io, message: messageObject })
+        }
         await this.$messageManager.push(messageObject);
         //TODO: should        
         this.$event.fire('message::push', messageObject);
@@ -124,7 +126,7 @@ class QueueServer {
                 let consumer = self.$consumerManager.getConsumer(msg);
                 if (consumer) {
                     let producer = self.$producerManager.getProducer(msg.code);
-                    self.feedConsumerAMessage(consumer, msg, producer.io);
+                    self.feedConsumerAMessage(consumer, msg, producer ? producer.io : null);
                 } else {
                     if (msg.retry_count == 0) {
                         msg.first_processing_at = 0;
@@ -166,24 +168,33 @@ class QueueServer {
     }
 
     handleCallbackInRequestFromProducer(io, messageObject) {
-        // default io.inputs.is_callback is 1
-        if (typeof io.inputs.is_callback === 'undefined' || (io.inputs.is_callback && io.inputs.is_callback !== '0')) {
-            // return
-            if (io.inputs.postback_url) {
-                // return to postback_url
-                this.noWaitingAndRespondItself(io, messageObject);
-            }
+        var isWaitingAResponse = true;
+        if (messageObject.status.toLowerCase() === "duplicated") {
+            this.noWaitingAndRespondItself(io, messageObject, "duplicated");
+            isWaitingAResponse = false;
         } else {
-            // no return
-            this.noWaitingAndRespondItself(io, messageObject);
+            // default io.inputs.is_callback is 1
+            if (typeof io.inputs.is_callback === 'undefined' || (io.inputs.is_callback && io.inputs.is_callback !== '0')) {
+                // return
+                if (io.inputs.postback_url) {
+                    // return to postback_url
+                    this.noWaitingAndRespondItself(io, messageObject);
+                    isWaitingAResponse = false;
+                }
+            } else {
+                // no return
+                this.noWaitingAndRespondItself(io, messageObject);
+                isWaitingAResponse = false;
+            }
         }
+        return isWaitingAResponse;
     }
 
-    noWaitingAndRespondItself(io, messageObject) {
+    noWaitingAndRespondItself(io, messageObject, status = "queued") {
         io.status(200).json({
-            status: 'queued',
-            result: {
-                message_code: messageObject.code,
+            "status": status,
+            "result": {
+                "message_code": messageObject.code,
             }
         });
     }

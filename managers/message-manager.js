@@ -11,6 +11,15 @@ class MessageManager {
     }
 
     async push(message) {
+        // check duplicated message by message.hash
+        if (message.hash != null && message.hash != '') {
+            if (await knex('message')
+                .where('hash', message.hash)
+                .whereIn('status', ['WAITING', 'PROCESSING'])
+                .first() != null) {
+                message.status = 'DUPLICATED';
+            }
+        }
         return await knex('message').insert(message.serialize());
     }
     async getMessageBy(messageCondition = null, limit = 1, callbackFn = null) {
