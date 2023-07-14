@@ -87,7 +87,9 @@ function HttpConnection() {
         method = method.toUpperCase();
         url = url.split("?")[0];
         if (method === "GET") {
-            retval.fn = this.requestCallbacks[method][url];
+            try {
+                retval.fn = this.requestCallbacks[method][url];                
+            } catch (error) {}
             // Match url with params
             if (retval.fn == null) {
                 getCallbackWithRoutePattern(retval, url, this.requestCallbacks[method]);
@@ -97,7 +99,9 @@ function HttpConnection() {
                 retval.fn = this.assetAPI;
             }
         } else {
-            retval.fn = this.requestCallbacks[method][url];
+            try {
+                retval.fn = this.requestCallbacks[method][url];                
+            } catch (error) {}
             // Match url with params
             if (retval.fn == null) {
                 getCallbackWithRoutePattern(retval, url, this.requestCallbacks[method]);
