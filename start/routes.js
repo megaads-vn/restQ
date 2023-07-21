@@ -11,7 +11,7 @@ module.exports = function ($route, $logger) {
                 .header("Access-Control-Allow-Credentials", "true")
                 .header("Access-Control-Max-Age", 28800)
                 .header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE, PATCH")
-                .header("Access-Control-Allow-Headers", "Content-Type, X-Auth-Token, Origin, Authorization, X-XSRF-TOKEN, Role-User, Token, auth-email")
+                .header("Access-Control-Allow-Headers", "Content-Type, X-Auth-Token, Origin, Authorization, X-XSRF-TOKEN, Role-User, Token, auth-email, seller-token, token")
         }
     });
     $route.options("/*", function (io) {
@@ -19,7 +19,7 @@ module.exports = function ($route, $logger) {
             .header("Access-Control-Allow-Credentials", "true")
             .header("Access-Control-Max-Age", 28800)
             .header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE, PATCH")
-            .header("Access-Control-Allow-Headers", "Content-Type, X-Auth-Token, Origin, Authorization, X-XSRF-TOKEN, Role-User, Token, auth-email")
+            .header("Access-Control-Allow-Headers", "Content-Type, X-Auth-Token, Origin, Authorization, X-XSRF-TOKEN, Role-User, Token, auth-email, seller-token, token")
             .echo("POST, GET, OPTIONS, PUT, DELETE, PATCH");
     });
     /** Register socket.io requests **/
