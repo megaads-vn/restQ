@@ -69,6 +69,17 @@ class MessageManager {
                     // .orderBy('priority', 'desc')
                     // .orderBy('retry_count', 'asc')
                     .orderBy('id', 'asc');
+            } else if (messageCondition.last_consumer) {
+                retVal = retVal.where('status', 'WAITING')
+                    .where('retry_count', '<', self.maxRetryCount)
+                    // .whereRaw(`if ((? >= last_processing_at + retry_count * ? * 1000), 1, 0) = 1`, [
+                    //     Date.now(),
+                    //     self.retryTime
+                    // ])
+                    .where('last_consumer', '=', messageCondition.last_consumer)
+                    .orderBy('priority', 'desc')
+                    .orderBy('retry_count', 'asc')
+                    .orderBy('id', 'asc');
             }
         } else {
             retVal = query.where('status', 'WAITING')

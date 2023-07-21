@@ -60,6 +60,7 @@ class QueueServer {
         let messageObject = Message.buildMessageFromIO(io);
         let consumer = this.$consumerManager.getConsumer(messageObject, false);
         if (consumer) {
+            messageObject.last_consumer = consumer.name;
             if (typeof io.inputs.is_callback === 'undefined' && typeof consumer.is_callback !== 'undefined') {
                 io.inputs.is_callback = consumer.is_callback;
             }
@@ -99,7 +100,7 @@ class QueueServer {
 
     onConsumerDone(eventType, consumer) {
         let self = queueServerInstance;
-        self.$messageManager.getMessageBy({ paths: consumer.paths }, (consumer.qos - consumer.processing_request_count), function (messages) {
+        self.$messageManager.getMessageBy({ last_consumer: consumer.name }, (consumer.qos - consumer.processing_request_count), function (messages) {
             for (let index = 0; index < messages.length; index++) {
                 let msg = messages[index];
                 let consumer = self.$consumerManager.getConsumer(msg);
@@ -144,9 +145,8 @@ class QueueServer {
         let anyConsumerIsIdle = self.$consumerManager.havingAnyConsumerIsIdle();
         if (anyConsumerIsIdle && anyConsumerIsIdle.length > 0) {
             self.shuffleArray(anyConsumerIsIdle);
-            for (let index = 0; index < anyConsumerIsIdle.length; index++) {
-                const consumer = anyConsumerIsIdle[index];
-                self.$messageManager.getMessageBy({ paths: consumer.paths }, (consumer.qos - consumer.processing_request_count), function (messages) {
+            anyConsumerIsIdle.forEach(consumer => {
+                self.$messageManager.getMessageBy({ last_consumer: consumer.name }, (consumer.qos - consumer.processing_request_count), function (messages) {
                     for (let index = 0; index < messages.length; index++) {
                         let msg = messages[index];
                         let consumer = self.$consumerManager.getConsumer(msg);
@@ -163,7 +163,7 @@ class QueueServer {
                         }
                     }
                 });
-            }
+            });
         }
     }
 
