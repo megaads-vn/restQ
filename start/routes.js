@@ -3,6 +3,7 @@ module.exports = function ($route, $logger) {
     $route.get("/", "HomeController@welcome");
     $route.get("/favicon.ico", "HomeController@welcome");
     $route.get("/message/(:code)", "MessageController@get");
+    $route.delete("/message/done", "MessageController@removeDoneMessages");
     $route.any("/monitor/start", "MonitorController@start");
     $route.any("/monitor/stop", "MonitorController@stop");    
     $route.any("/*", "MessageController@onRequest", {

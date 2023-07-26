@@ -16,4 +16,13 @@ function MessageController($event, $config, $queueServer) {
             'result': message == null ? null : message
         });
     }
+    this.removeDoneMessages = async function (io) {
+        let result = await knex('message')
+            .where('status', 'DONE')
+            .del();
+        io.json({
+            "status": "successful",
+            "result": result
+        });
+    }
 }
