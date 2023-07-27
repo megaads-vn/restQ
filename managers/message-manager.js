@@ -1,13 +1,30 @@
 const config = require(__dir + "/core/app/config");
 const knex = require('knex')(config.get("database"));
 const Message = require(__dir + "/objects/message");
-var lock = new (require('async-lock'))({maxPending: 100000});
+var lock = new (require('async-lock'))({ maxPending: 100000 });
 class MessageManager {
     constructor($config) {
         this.retryTime = $config.get('consumers.retryTime');
         this.maxRetryCount = $config.get('consumers.maxRetryCount');
         let serverStartAt = Date.now();
         this.updateProcessingMessageAfterServerRestart(serverStartAt);
+        // Remove done messages
+        let oneDayAgoTimestamp = (new Date()).setDate((new Date()).getDate() - 1);
+        setInterval(async () => {
+            let result = await this.removeMessages([
+                {
+                    "key": "status",
+                    "operator": "=",
+                    "value": "DONE"
+                },
+                {
+                    "key": "last_processed_at",
+                    "operator": "<",
+                    "value": oneDayAgoTimestamp
+                }
+            ]);
+            console.log("removeMessages", result);
+        }, 1 * 60 * 60 * 1000);
     }
 
     async push(message) {
@@ -22,28 +39,42 @@ class MessageManager {
         }
         return await knex('message').insert(message.serialize());
     }
+
     async getMessageBy(messageCondition = null, limit = 1, callbackFn = null) {
         var self = this;
         lock.acquire("message-lock", async function (done) {
-                let retVal = [];
-                let query = knex('message');
-                let messageRecords = await self.buildQueryByCondition(query, messageCondition).offset(0).limit(limit);
-                for (let index = 0; index < messageRecords.length; index++) {
-                    const messageRecord = messageRecords[index];
-                    messageRecord.status = 'PROCESSING';
-                    let now = Date.now();
-                    if (!messageRecord.first_processing_at) {
-                        messageRecord.first_processing_at = now;
-                    }
-                    messageRecord.last_processing_at = now;
-    
-                    let messageObj = Message.buildMessageFromDatabaseRecord(messageRecord);
-                    await self.update(messageObj);  
-                    retVal.push(messageObj);
+            let retVal = [];
+            let query = knex('message');
+            let messageRecords = await self.buildQueryByCondition(query, messageCondition).offset(0).limit(limit);
+            for (let index = 0; index < messageRecords.length; index++) {
+                const messageRecord = messageRecords[index];
+                messageRecord.status = 'PROCESSING';
+                let now = Date.now();
+                if (!messageRecord.first_processing_at) {
+                    messageRecord.first_processing_at = now;
                 }
-                callbackFn(retVal);
+                messageRecord.last_processing_at = now;
+
+                let messageObj = Message.buildMessageFromDatabaseRecord(messageRecord);
+                await self.update(messageObj);
+                retVal.push(messageObj);
+            }
+            callbackFn(retVal);
             done();
-        }, function () {});
+        }, function () { });
+    }
+    /**
+     * Remove messages by conditions
+     * @param [{key, operator, value}] conditions
+     * @returns Number of deleted messages
+     */
+    async removeMessages(conditions = []) {
+        let query = knex('message');
+        for (let index = 0; index < conditions.length; index++) {
+            const condition = conditions[index];
+            query.where(condition.key, condition.operator, condition.value);
+        }
+        return await query.del();
     }
 
     buildQueryByCondition(query, messageCondition) {
