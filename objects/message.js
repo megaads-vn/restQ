@@ -1,4 +1,6 @@
 const crypto = require('crypto');
+const urlPackage = require('url');
+
 class Message {
     constructor(data = null, postback_url = null, is_callback = 1, priority = 0) {
         this.code = Message.generateMessageCode(32);
@@ -76,6 +78,19 @@ class Message {
             method: io.request.method,
             payload: Object.assign({}, io.inputs)
         };
+        // Headers
+        let headers = Object.assign({}, io.request.headers);
+        if (io.request.connection && io.request.connection.remoteAddress) {
+            headers["X-Forwarded-For"] = io.request.connection.remoteAddress;
+        } else if (io.request.socket && io.request.socket.remoteAddress) {
+            headers["X-Forwarded-For"] = io.request.socket.remoteAddress;
+        }
+        if (self.origin) {
+            headers["host"] = urlPackage.parse(self.origin).host;
+        }
+        delete headers['content-length'];
+        retVal.data.headers = headers;
+
         retVal.path = io.request.url;
         retVal.priority = io.inputs.priority ?? 0;
         retVal.postback_url = io.inputs.postback_url ?? null;

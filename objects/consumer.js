@@ -129,6 +129,8 @@ class Consumer extends ConsumerInterface {
                 headers["host"] = urlPackage.parse(self.origin).host;
             }
             delete headers['content-length'];
+        } else if (message.data.headers) {
+            headers = Object.assign({}, message.data.headers);            
         }
         retVal.headers = headers;
 
