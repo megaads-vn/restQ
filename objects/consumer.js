@@ -116,21 +116,11 @@ class Consumer extends ConsumerInterface {
         retVal.data = data;
 
         let headers = {};
-        if (io) {
-            headers = Object.assign({}, io.request.headers);
-
-            if (io.request.connection && io.request.connection.remoteAddress) {
-                headers["X-Forwarded-For"] = io.request.connection.remoteAddress;
-            } else if (io.request.socket && io.request.socket.remoteAddress) {
-                headers["X-Forwarded-For"] = io.request.socket.remoteAddress;
-            }
-
-            if (self.origin) {
-                headers["host"] = urlPackage.parse(self.origin).host;
-            }
-            delete headers['content-length'];
-        } else if (message.data.headers) {
+        if (message.data.headers) {
             headers = Object.assign({}, message.data.headers);            
+        }
+        if (self.origin) {
+            headers["host"] = urlPackage.parse(self.origin).host;
         }
         retVal.headers = headers;
 

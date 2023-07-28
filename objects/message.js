@@ -1,5 +1,4 @@
 const crypto = require('crypto');
-const urlPackage = require('url');
 
 class Message {
     constructor(data = null, postback_url = null, is_callback = 1, priority = 0) {
@@ -84,9 +83,6 @@ class Message {
             headers["X-Forwarded-For"] = io.request.connection.remoteAddress;
         } else if (io.request.socket && io.request.socket.remoteAddress) {
             headers["X-Forwarded-For"] = io.request.socket.remoteAddress;
-        }
-        if (self.origin) {
-            headers["host"] = urlPackage.parse(self.origin).host;
         }
         delete headers['content-length'];
         retVal.data.headers = headers;
