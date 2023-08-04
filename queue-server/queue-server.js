@@ -22,9 +22,9 @@ class QueueServer {
             let self = this;
             this.interval = setInterval(function () {
                 self.handleIfAnyConsumerIsIdle();
-            }, 5000);
+            }, 3000);
             // message::publish        
-            this.$event.listen('message::push', this.onNewMessage);
+            // this.$event.listen('message::push', this.onNewMessage);
             // consumer
             this.$event.listen('consumer::done', this.onConsumerDone);
             this.isRunning = true;
@@ -68,7 +68,7 @@ class QueueServer {
                 io.inputs.postback_url = consumer.postback_url;
             }
         } else {
-            // messsage's not yet supported
+            // the messsage's not yet supported
             io.inputs.is_callback = 0;
         }
         let isWaitingAResponse = this.handleCallbackInRequestFromProducer(io, messageObject);
@@ -80,8 +80,9 @@ class QueueServer {
             await this.$producerManager.push({ io, message: messageObject })
         }
         await this.$messageManager.push(messageObject);
-        //TODO: should        
-        this.$event.fire('message::push', messageObject);
+        if (consumer != null) {
+            this.$event.fire('message::push', messageObject);
+        }
     }
 
     async onConsumerResponse(eventType, data) {

@@ -1,7 +1,11 @@
 const config = require(__dir + "/core/app/config");
 const knex = require('knex')(config.get("database"));
 const Message = require(__dir + "/objects/message");
-var lock = new (require('async-lock'))({ maxPending: 100000 });
+var lock = new (require('async-lock'))({
+    maxPending: 1000000,
+    maxExecutionTime: 3000,
+    maxOccupationTime: 10000
+});
 class MessageManager {
     constructor($config) {
         this.retryTime = $config.get('consumers.retryTime');
