@@ -13,8 +13,8 @@ class MessageManager {
         let serverStartAt = Date.now();
         this.updateProcessingMessageAfterServerRestart(serverStartAt);
         // Remove done messages
-        let oneDayAgoTimestamp = (new Date()).setDate((new Date()).getDate() - 1);
         setInterval(async () => {
+            let oneDayAgoTimestamp = (new Date()).setDate((new Date()).getDate() - 1);
             let result = await this.removeMessages([
                 {
                     "key": "status",
