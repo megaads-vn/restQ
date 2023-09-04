@@ -130,8 +130,12 @@ class MessageManager {
         return retVal;
     }
 
-    async update(message) {
-        return await knex('message').where('code', message.code).update(message.serialize());
+    async update(message, ignoreData = true) {
+        let updatedMessage = message.serialize();
+        if (ignoreData) {
+            delete updatedMessage.data;
+        }
+        return await knex('message').where('code', message.code).update(updatedMessage);
     }
 
     async updateProcessingMessageAfterServerRestart(serverStartAt) {
