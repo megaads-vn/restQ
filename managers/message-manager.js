@@ -90,6 +90,7 @@ class MessageManager {
                 retVal = retVal.where('code', messageCondition.code).where('status', 'WAITING');
             } else if (messageCondition.paths) {
                 retVal = retVal.where('status', 'WAITING')
+                    .where('retry_count', '>=', 0)
                     .where('retry_count', '<', self.maxRetryCount)
                     // .whereRaw(`if ((? >= last_processing_at + retry_count * ? * 1000), 1, 0) = 1`, [
                     //     Date.now(),
@@ -106,6 +107,7 @@ class MessageManager {
                     .orderBy('id', 'asc');
             } else if (messageCondition.last_consumer) {
                 retVal = retVal.where('status', 'WAITING')
+                    .where('retry_count', '>=', 0)
                     .where('retry_count', '<', self.maxRetryCount)
                     // .whereRaw(`if ((? >= last_processing_at + retry_count * ? * 1000), 1, 0) = 1`, [
                     //     Date.now(),
@@ -118,6 +120,7 @@ class MessageManager {
             }
         } else {
             retVal = query.where('status', 'WAITING')
+                .where('retry_count', '>=', 0)
                 .where('retry_count', '<', self.maxRetryCount)
                 .whereRaw(`if ((? >= last_processing_at + retry_count * ? * 1000), 1, 0) = 1`, [
                     Date.now(),
