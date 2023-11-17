@@ -112,8 +112,8 @@ class MessageManager {
                     //     self.retryTime
                     // ])
                     .where('last_consumer', '=', messageCondition.last_consumer)
-                    .orderBy('priority', 'desc')
-                    .orderBy('retry_count', 'asc')
+                    // .orderBy('priority', 'desc')
+                    // .orderBy('retry_count', 'asc')
                     .orderBy('id', 'asc');
             }
         } else {
