@@ -101,7 +101,7 @@ class QueueServer {
 
     onConsumerDone(eventType, consumer) {
         let self = queueServerInstance;
-        self.$messageManager.getMessageBy({ last_consumer: consumer.name }, (consumer.qos - consumer.processing_request_count), function (messages) {
+        self.$messageManager.getMessageBy({ "last_consumer": consumer.name, "delay_to": Date.now() }, (consumer.qos - consumer.processing_request_count), function (messages) {
             for (let index = 0; index < messages.length; index++) {
                 let msg = messages[index];
                 let consumer = self.$consumerManager.getConsumer(msg);
@@ -122,7 +122,7 @@ class QueueServer {
 
     onNewMessage(eventType, messageObject) {
         let self = queueServerInstance;
-        self.$messageManager.getMessageBy({ 'code': messageObject.code }, 1, function (messages) {
+        self.$messageManager.getMessageBy({ "code": messageObject.code, "delay_to": Date.now() }, 1, function (messages) {
             if (messages.length == 1) {
                 let msg = messages[0];
                 let consumer = self.$consumerManager.getConsumer(msg);
@@ -148,7 +148,7 @@ class QueueServer {
             self.shuffleArray(idleConsumers);
             idleConsumers.forEach(consumer => {
                 console.log('idleConsumer', consumer.name);
-                self.$messageManager.getMessageBy({ last_consumer: consumer.name }, (consumer.qos - consumer.processing_request_count), function (messages) {
+                self.$messageManager.getMessageBy({ last_consumer: consumer.name, "delay_to": Date.now() }, (consumer.qos - consumer.processing_request_count), function (messages) {
                     for (let index = 0; index < messages.length; index++) {
                         let msg = messages[index];
                         let consumer = self.$consumerManager.getConsumer(msg);

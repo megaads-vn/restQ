@@ -15,6 +15,7 @@ class Message {
         this.first_processing_at = 0;
         this.last_processing_at = 0;
         this.last_processed_at = 0;
+        this.delay_to = 0;
         Message.generateHash(this);
     }
 
@@ -45,7 +46,8 @@ class Message {
             created_at: this.created_at,
             first_processing_at: this.first_processing_at,
             last_processing_at: this.last_processing_at,
-            last_processed_at: this.last_processed_at
+            last_processed_at: this.last_processed_at,
+            delay_to: this.delay_to
         }
     }
 
@@ -65,6 +67,7 @@ class Message {
         retVal.first_processing_at = data.first_processing_at ?? retVal.first_processing_at;
         retVal.last_processing_at = data.last_processing_at ?? retVal.last_processing_at;
         retVal.last_processed_at = data.last_processed_at ?? retVal.last_processed_at;
+        retVal.delay_to = data.delay_to ? retVal.last_processed_at : 0;
         Message.generateHash(retVal);
         return retVal;
     }
@@ -96,6 +99,11 @@ class Message {
         } else {
             retVal.is_callback = 0;
         }
+
+        retVal.delay_to = 0;
+        if (io.inputs.delay != null) {
+            retVal.delay_to = Date.now() + io.inputs.delay * 1000;
+        }        
 
         Message.generateHash(retVal);
 

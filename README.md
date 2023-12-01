@@ -8,11 +8,16 @@ Cool message queue server uses HTTP Gateway
     - You send request to endpoint: ```api-domain.com/api/send-request```
     - You send request to restQ: ```restQ-domain.com/api/send-request```
 ## Request data options:
-**1. is_callback, postback_url**
+**1. `is_callback`, `postback_url`**
   - ```is_callback = 0```: not wait for returning
   - ```is_callback = 1 (default)```:
     - ```postback_url is empty (default)```: wait for the result to return itself
     - ```postback_url is not empty```: wait for the result to return it to postback_url
     
-**2. priority**: Priority of request
+**2. `priority`**: Priority of request. 
+- 0 is default
+- Value is between 0 and 99
+- larger numbers indicate higher priority
+
+**2. `delay`**: Delay time in seconds. 0 is default
 

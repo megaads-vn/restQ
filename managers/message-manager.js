@@ -46,26 +46,30 @@ class MessageManager {
 
     async getMessageBy(messageCondition = null, limit = 1, callbackFn = null) {
         var self = this;
-        lock.acquire("message-lock", async function (done) {
-            let retVal = [];
-            let query = knex('message');
-            let messageRecords = await self.buildQueryByCondition(query, messageCondition).offset(0).limit(limit);
-            for (let index = 0; index < messageRecords.length; index++) {
-                const messageRecord = messageRecords[index];
-                messageRecord.status = 'PROCESSING';
-                let now = Date.now();
-                if (!messageRecord.first_processing_at) {
-                    messageRecord.first_processing_at = now;
-                }
-                messageRecord.last_processing_at = now;
+        if (limit <= 0) {
+            callbackFn([]);
+        } else {
+            lock.acquire("message-lock", async function (done) {
+                let retVal = [];
+                let query = knex('message');
+                let messageRecords = await self.buildQueryByCondition(query, messageCondition).offset(0).limit(limit);
+                for (let index = 0; index < messageRecords.length; index++) {
+                    const messageRecord = messageRecords[index];
+                    messageRecord.status = 'PROCESSING';
+                    let now = Date.now();
+                    if (!messageRecord.first_processing_at) {
+                        messageRecord.first_processing_at = now;
+                    }
+                    messageRecord.last_processing_at = now;
 
-                let messageObj = Message.buildMessageFromDatabaseRecord(messageRecord);
-                await self.update(messageObj);
-                retVal.push(messageObj);
-            }
-            callbackFn(retVal);
-            done();
-        }, function () { });
+                    let messageObj = Message.buildMessageFromDatabaseRecord(messageRecord);
+                    await self.update(messageObj);
+                    retVal.push(messageObj);
+                }
+                callbackFn(retVal);
+                done();
+            }, function () { });
+        }
     }
     /**
      * Remove messages by conditions
@@ -104,7 +108,7 @@ class MessageManager {
                     })
                     // .orderBy('priority', 'desc')
                     // .orderBy('retry_count', 'asc')
-                    .orderBy('id', 'asc');
+                    //.orderBy('id', 'asc');
             } else if (messageCondition.last_consumer) {
                 retVal = retVal.where('status', 'WAITING')
                     .where('retry_count', '>=', 0)
@@ -116,7 +120,11 @@ class MessageManager {
                     .where('last_consumer', '=', messageCondition.last_consumer)
                     // .orderBy('priority', 'desc')
                     // .orderBy('retry_count', 'asc')
-                    .orderBy('id', 'asc');
+                    //.orderBy('id', 'asc');
+            }
+            if (messageCondition.delay_to) {
+                retVal = retVal.where('delay_to', '>=', 0)
+                    .where('delay_to', '<=', messageCondition.delay_to);
             }
         } else {
             retVal = query.where('status', 'WAITING')
