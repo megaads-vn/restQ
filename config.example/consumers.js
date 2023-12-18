@@ -12,14 +12,14 @@ module.exports = {
     // setting consumers
     consumers: [
         {
-            'name': 'error-consumer',
-            'origin': 'http://localhost:2306/error',
+            'name': 'logger',
+            'origin': 'https://webhook.site/d4bc1dec-de23-463c-8c47-5882f8fb4f30/$1',
             'paths': [
-                '/error/([a-z]{3,10})'
+                '/action/([A-Za-z]{2})(.*)([?].*)'
             ],
             'qos': 5,
-            'is_callback': 0,
-            'postback_url': '',
+            'is_callback': 1,
+            'postback_url': 'https://webhook.site/d4bc1dec-de23-463c-8c47-5882f8fb4f30/postback',
             'requestTimeout': 5
         }
     ]

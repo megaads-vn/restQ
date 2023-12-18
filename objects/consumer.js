@@ -19,7 +19,7 @@ class Consumer extends ConsumerInterface {
     static generateConsumerCode(length = 32) {
         let retVal = '';
 
-        const characters  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
         var charactersLength = characters.length;
         for (let i = 0; i < length; i++) {
             retVal += characters.charAt(Math.floor(Math.random() * charactersLength));
@@ -32,54 +32,53 @@ class Consumer extends ConsumerInterface {
         this.$logger.debug('Consume.consume: ' + message.code);
         this.$logger.debug('- processing_request_count: ' + this.processing_request_count);
         this.$logger.debug('- qos: ' + this.qos);
-        if (this.processing_request_count < this.qos 
-            && message.data 
-            && message.data.url 
+        if (this.processing_request_count < this.qos
+            && message.data
+            && message.data.url
             && message.data.method
         ) {
             this.processing_request_count++;
-            let self = this;            
+            let self = this;
             let requestConfig = this.buildRequestConfig(message, requestTimeout, io);
             process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
             axios(requestConfig)
-            .then(function (response) {
-                self.processing_request_count--;
-                message.status = 'DONE';
-                message.last_processed_at = Date.now();
-                message.last_consumer = self.name;
+                .then(function (response) {
+                    self.processing_request_count--;
+                    message.status = 'DONE';
+                    message.last_processed_at = Date.now();
+                    message.last_consumer = self.name;
 
-                self.$event.fire('consumer::response', {
-                    message, 
-                    consumer: self, 
-                    response, 
-                    status: 'successful'
+                    self.$event.fire('consumer::response', {
+                        message,
+                        consumer: self,
+                        response,
+                        status: 'successful'
+                    });
+                }).catch(function (error) {
+                    self.$logger.error('Consume Function: ' + error.message, requestConfig);
+                    if (error.code === 'ECONNABORTED') {
+                        message.status = 'FAILED';
+                    } else {
+                        message.status = 'WAITING';
+                    }
+
+                    self.processing_request_count--;
+                    if (message.last_processing_at > message.first_processing_at) {
+                        message.retry_count++;
+                    }
+                    message.last_consumer = self.name;
+
+                    self.$event.fire('consumer::response', {
+                        message,
+                        consumer: self,
+                        response: {
+                            status: error.response ? error.response.status : 504, // 504 - timeout in proxy
+                            data: error.response ? error.response.data : { status: 'failed', message: error.message }
+                        },
+                        status: 'error',
+                        errorCode: error.code
+                    });
                 });
-            }).catch(function (error) {
-                self.$logger.error('Consume Function: ' + error.message);
-
-                if (error.code === 'ECONNABORTED') {
-                    message.status = 'FAILED';
-                } else {
-                    message.status = 'WAITING';
-                }
-
-                self.processing_request_count--;
-                if (message.last_processing_at > message.first_processing_at) {
-                    message.retry_count++; 
-                }
-                message.last_consumer = self.name;
-
-                self.$event.fire('consumer::response', {
-                    message, 
-                    consumer: self, 
-                    response: {
-                        status: error.response ? error.response.status : 504, // 504 - timeout in proxy
-                        data: error.response ? error.response.data : {status: 'failed', message: error.message}
-                    }, 
-                    status: 'error',
-                    errorCode: error.code
-                });
-            });
         } else {
             this.$logger.debug('Consume.consume - QOS ERROR : ' + message.code);
             this.$logger.debug('- processing_request_count: ' + this.processing_request_count);
@@ -90,9 +89,9 @@ class Consumer extends ConsumerInterface {
                 message.last_processing_at = 0;
             }
             self.$event.fire('consumer::response', {
-                message, 
-                consumer: self, 
-                response: {}, 
+                message,
+                consumer: self,
+                response: {},
                 status: 'error',
                 errorCode: 'QOS'
             });
@@ -103,12 +102,12 @@ class Consumer extends ConsumerInterface {
         let self = this;
         let retVal = {
             method: message.data.method,
-            url: this.origin + message.data.url,
-            timeout: requestTimeout * 1000 
+            url: this.buildRequestOrigin(message) + message.data.url,
+            timeout: requestTimeout * 1000
         };
 
         let data = null;
-        if (message.data.payload 
+        if (message.data.payload
             && Object.keys(message.data.payload).length !== 0
             && Object.getPrototypeOf(message.data.payload) === Object.prototype) {
             data = message.data.payload;
@@ -117,13 +116,39 @@ class Consumer extends ConsumerInterface {
 
         let headers = {};
         if (message.data.headers) {
-            headers = Object.assign({}, message.data.headers);            
+            headers = Object.assign({}, message.data.headers);
         }
         if (self.origin) {
             headers["host"] = urlPackage.parse(self.origin).host;
         }
         retVal.headers = headers;
 
+        return retVal;
+    }
+
+    /**
+     * Build Request Origin using Regex Group
+     * For example:
+     * - path: /api/([A-Za-z]{2})/order => /api/us/order
+     * - orgin: $1.api.com => us.api.com
+     * @param {*} message
+     * @returns {String}
+     */
+    buildRequestOrigin(message) {
+        var retVal = this.origin;
+        if (retVal.indexOf("$") >= 0) {
+            for (let index = 0; index < this.paths.length; index++) {
+                const path = this.paths[index];
+                let regex = new RegExp(path);
+                let matches = message.data.url.match(regex);
+                if (matches != null) {
+                    for (let index = 1; index < matches.length; index++) {
+                        retVal = retVal.replace("$" + index, matches[index]);
+                    }
+                    break;
+                }
+            }
+        }
         return retVal;
     }
 }
