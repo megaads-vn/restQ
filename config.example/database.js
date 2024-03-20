@@ -5,5 +5,8 @@ module.exports = {
         database: 'restq',
         user: 'root',
         password: ''
+    },
+    message: {
+        index: 'getMessage'
     }
 };

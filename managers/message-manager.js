@@ -51,7 +51,7 @@ class MessageManager {
         } else {
             lock.acquire("message-lock", async function (done) {
                 let retVal = [];
-                let query = knex('message');
+                let query = knex.select(knex.raw("*")).from(knex.raw("message use index (" + config.get("database.message.index", "getMessage") + ")"));
                 let messageRecords = await self.buildQueryByCondition(query, messageCondition).offset(0).limit(limit);
                 for (let index = 0; index < messageRecords.length; index++) {
                     const messageRecord = messageRecords[index];
