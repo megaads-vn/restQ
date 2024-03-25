@@ -149,6 +149,10 @@ class MessageManager {
         return await knex('message').where('code', message.code).update(updatedMessage);
     }
 
+    async removeMessage(message) {
+        return await knex('message').where('code', message.code).del();
+    }
+
     async updateProcessingMessageAfterServerRestart(serverStartAt) {
         knex('message')
             .where('status', 'PROCESSING')

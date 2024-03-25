@@ -1,8 +1,10 @@
 const Message = require(__dir + "/objects/message");
 const axios = require('axios');
 var queueServerInstance = null;
+var config = null;
 class QueueServer {
     constructor($event, $config, $producerManager, $messageManager, $consumerManager) {
+        config = $config;
         this.isRunning = false;
         this.$event = $event;
         this.consumerMaxRetryCount = $config.get('consumers.maxRetryCount');
@@ -79,7 +81,9 @@ class QueueServer {
         if (isWaitingAResponse) {
             await this.$producerManager.push({ io, message: messageObject })
         }
-        await this.$messageManager.push(messageObject);
+        if (consumer != null || !config.get("consumers.ignoreNotSupportedMessages", true)) {
+            await this.$messageManager.push(messageObject);
+        }
         if (consumer != null) {
             this.$event.fire('message::push', messageObject);
         }
@@ -87,12 +91,16 @@ class QueueServer {
 
     async onConsumerResponse(eventType, data) {
         let self = queueServerInstance;
-        await self.$messageManager.update(data.message);
-        self.$event.fire('consumer::done', data.consumer)
-        if (data.status == 'successful') {
+        if (data.status == 'successful' 
+            && config.get("consumers.removeMessageAfterDone", true)) {
+            await self.$messageManager.removeMessage(data.message);
+        } else {
+            await self.$messageManager.update(data.message);
+        }
+        self.$event.fire('consumer::done', data.consumer);
+        if (data.status == 'successful') {            
             self.respond(data);
         } else if (data.status == 'error') {
-            await self.$messageManager.update(data.message);
             if (data.errorCode === 'ECONNABORTED' || (data.errorCode !== 'ECONNABORTED' && data.message.retry_count >= self.consumerMaxRetryCount)) {
                 self.respond(data);
             }
