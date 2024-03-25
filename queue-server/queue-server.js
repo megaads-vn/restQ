@@ -88,11 +88,11 @@ class QueueServer {
             this.$event.fire('message::push', messageObject);
         }
     }
-
+    
     async onConsumerResponse(eventType, data) {
         let self = queueServerInstance;
         if (data.status == 'successful' 
-            && config.get("consumers.removeMessageAfterDone", true)) {
+            && config.get("consumers.removeMessageAfterProcessing", false)) {
             await self.$messageManager.removeMessage(data.message);
         } else {
             await self.$messageManager.update(data.message);
