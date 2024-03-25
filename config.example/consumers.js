@@ -13,6 +13,8 @@ module.exports = {
 
     ignoreNotSupportedMessages: true,
 
+    ignoreDuplicatedMessages: false,
+
     // setting consumers
     consumers: [
         {

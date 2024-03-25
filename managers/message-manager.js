@@ -7,9 +7,9 @@ var lock = new (require('async-lock'))({
     maxOccupationTime: 10000
 });
 class MessageManager {
-    constructor($config) {
-        this.retryTime = $config.get('consumers.retryTime');
-        this.maxRetryCount = $config.get('consumers.maxRetryCount');
+    constructor() {
+        this.retryTime = config.get('consumers.retryTime', 5);
+        this.maxRetryCount = config.get('consumers.maxRetryCount', 5);
         let serverStartAt = Date.now();
         this.updateProcessingMessageAfterServerRestart(serverStartAt);
         // Remove done messages
@@ -39,6 +39,9 @@ class MessageManager {
                 .whereIn('status', ['WAITING', 'PROCESSING'])
                 .first() != null) {
                 message.status = 'DUPLICATED';
+                if (config.get("consumers.ignoreDuplicatedMessages", false)) {
+                    return;
+                }
             }
         }
         return await knex('message').insert(message.serialize());
@@ -167,4 +170,4 @@ class MessageManager {
     }
 }
 
-module.exports = new MessageManager(config);
+module.exports = new MessageManager();
