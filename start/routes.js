@@ -7,7 +7,7 @@ module.exports = function ($route, $logger) {
     $route.delete("/message/done", "MessageController@removeDoneMessages");
     $route.any("/monitor/start", "MonitorController@start");
     $route.any("/monitor/stop", "MonitorController@stop");    
-    $route.any("/*", "MessageController@onRequest", {
+    $route.post("/*", "MessageController@onRequest", {
         before: function (io) {
             io.header("Access-Control-Allow-Origin", "*")
                 .header("Access-Control-Allow-Credentials", "true")
