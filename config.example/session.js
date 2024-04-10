@@ -1,4 +1,6 @@
 module.exports = {
+    /** Prefix for session keys. **/
+    prefix: "restQ",
     /** Session timeout: in minutes **/
     timeout: 30,
     /** Default session driver: file, memory **/

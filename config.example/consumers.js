@@ -20,6 +20,7 @@ module.exports = {
         {
             'name': 'logger',
             'origin': 'https://webhook.site/d4bc1dec-de23-463c-8c47-5882f8fb4f30/$1',
+            'method': 'inherit', //GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD
             'paths': [
                 '/action/([A-Za-z]{2})(.*)([?].*)'
             ],

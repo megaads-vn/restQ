@@ -101,7 +101,7 @@ class Consumer extends ConsumerInterface {
     buildRequestConfig(message, requestTimeout = 0, io = null) {
         let self = this;
         let retVal = {
-            method: message.data.method,
+            method: this.method != null && ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'].indexOf(this.method) >= 0 ? this.method : message.data.method,
             url: this.buildRequestOrigin(message) + message.data.url,
             timeout: requestTimeout * 1000
         };

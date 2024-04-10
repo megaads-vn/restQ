@@ -78,6 +78,7 @@ class ConsumerManager {
         configConsumers.forEach(item => {
             let consumer = new Consumer(self.$config, self.$event, self.$logger);
             consumer.origin = item.origin;
+            consumer.method = item.method;
             consumer.name = item.name;
             consumer.qos = item.qos;
             consumer.paths = item.paths;

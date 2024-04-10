@@ -13,6 +13,7 @@ function SessionManager() {
     this.interval = 60000;
     this.start = function (config) {
         var self = this;
+        this.SESSION_ID_KEY = config.prefix || this.SESSION_ID_KEY;
         this.timeout = config.timeout * 60 * 1000;
         driver = getDriver(config);
         sessions = driver.getSessions();
