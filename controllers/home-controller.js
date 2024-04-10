@@ -11,4 +11,8 @@ function HomeController($config, $event, $logger) {
             autoload: $config.get("app.autoload"),
         });
     }
+    this.robots = function (io) {
+        io.echo(`User-agent: *
+        Disallow: /`);
+    }
 }

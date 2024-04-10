@@ -1,6 +1,7 @@
 module.exports = function ($route, $logger) {
     /** Register HTTP requests **/    
     $route.get("/", "HomeController@welcome");
+    $route.get("/robots.txt", "HomeController@robots");
     $route.get("/favicon.ico", "HomeController@welcome");
     $route.get("/message/(:code)", "MessageController@get");
     $route.delete("/message/done", "MessageController@removeDoneMessages");
