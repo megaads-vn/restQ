@@ -1,0 +1,103 @@
+<html>
+
+<head>
+    <title>RestQ Monitor</title>
+</head>
+
+<body>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <div style="padding: 20px;background-color: rgb(51, 50, 47); margin-bottom: 50px; border-radius: 5px;">
+        <button id="startButton" onclick="start()" style="padding: 20px;background-color: green;">Start</button>
+        <button id="stopButton" onclick="stop()" style="padding: 20px;background-color: red;">Stop</button>
+        
+        <h3 id="loadingMessage" style="display: none;">Loading...</h3>
+        <h3 id="successMessage" style="display: inline; color: green;"><%= serverStatus %></h3>
+        <h3 id="failedMessage" style="display: none; color: red;"></h3>
+    </div>
+
+    <script>
+        var summaryData = <%- JSON.stringify(summaryData) %>;
+        var authToken = "<%- authToken %>";
+        for (let index = 0; index < summaryData.length; index++) {
+            let consumerData = summaryData[index];
+            var chartContainer = document.createElement('div');
+            document.body.appendChild(chartContainer);
+            Highcharts.chart(chartContainer, {
+                chart: {
+                    type: 'column',
+                    options3d: {
+                        enabled: true,
+                        alpha: 15,
+                        beta: 15,
+                        depth: 50,
+                        viewDistance: 25
+                    }
+                },
+                title: {
+                    text: "'" + consumerData.name + "' Consumer Summary"
+                },
+                xAxis: {
+                    categories: consumerData.labels
+                },
+                yAxis: {
+                    title: {
+                        text: 'Messages'
+                    }
+                },
+                series: consumerData.data
+            });
+        }
+
+        var loadingMessage = document.getElementById('loadingMessage');
+        var successMessage = document.getElementById('successMessage');
+        var failedMessage = document.getElementById('failedMessage');
+
+        function stop() {
+            showLoadingMessage();
+            fetch('/monitor/stop?token=' + authToken, {
+                method: 'POST',
+                body: {
+                    token: authToken
+                }
+            })
+            .then(async response => {
+                showSucessMessage(await response.text());
+            })
+            .catch(error => {
+                showFailedMessage(error.message);
+            });
+        }
+
+        function start() {
+            showLoadingMessage();
+            fetch('/monitor/start?token=' + authToken, {
+                method: 'POST'
+            })
+            .then(async response => {
+                showSucessMessage(await response.text());
+            })
+            .catch(error => {
+                showFailedMessage(error.message);
+            });
+        }
+
+        function showLoadingMessage() {
+            loadingMessage.style.display = 'inline';
+            successMessage.style.display = 'none';
+            failedMessage.style.display = 'none';
+        }
+        function showSucessMessage(message) {
+            loadingMessage.style.display = 'none';
+            successMessage.style.display = 'inline';
+            failedMessage.style.display = 'none';
+            successMessage.textContent = message;
+        }
+        function showFailedMessage(message) {
+            loadingMessage.style.display = 'none';
+            successMessage.style.display = 'none';
+            failedMessage.style.display = 'inline';
+            failedMessage.textContent = message;
+        }
+    </script>
+
+</html>
