@@ -65,7 +65,7 @@ function MonitorController($event, $config, $queueServer) {
                 .where('status', status)
                 .andWhere('last_consumer', consumer)
                 .andWhere('created_at_time', '>=', moment().subtract(days, 'days').format('YYYY-MM-DD 00:00:00'))
-                .groupByRaw('cast(created_at_time as date)');
+                .groupByRaw("DATE_FORMAT(created_at_time, '%Y-%m-%d')");
 
             return rows;
         } catch (error) {
