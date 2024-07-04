@@ -229,7 +229,7 @@ class QueueServer {
                 })
                     .then()
                     .catch(function (error) {
-                        console.log('Postback::error: ' + error.message);
+                        console.log('Postback::error: ' + responseData.message.code + " - " + error.message);
                     });
             } else {
                 // return to itself

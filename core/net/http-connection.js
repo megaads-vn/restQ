@@ -30,8 +30,10 @@ function HttpConnection() {
         req.on("data", function (data) {
             body += data;
             // Too much POST data, close the connection!
-            if (body.length > 1e6)
+            if (body.length > 512000000) {
+                console.log("body.length > 500MB", body.length);
                 req.connection.destroy();
+            }
         });
         req.on("end", function () {
             var callback = getCallback.bind(self)(req.method, url);
