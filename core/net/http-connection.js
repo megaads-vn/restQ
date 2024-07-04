@@ -138,6 +138,8 @@ function HttpConnection() {
         if (body != null) {
             if (contentType != null && contentType.indexOf("json") > 0) {
                 retval = { ...retval, ...JSON.parse(body) };
+            } else if (contentType != null && contentType.indexOf("form-data") > 0) {
+                retval = body;
             } else {
                 retval["data-raw"] = body;
             }
