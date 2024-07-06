@@ -77,9 +77,13 @@ class Message {
 
         retVal.data = {
             url: io.request.url,
-            method: io.request.method,
-            payload: Object.assign({}, io.inputs)
+            method: io.request.method
         };
+        if (typeof io.inputs === "object") {
+            retVal.data.payload = Object.assign({}, io.inputs);
+        } else {
+            retVal.data.payload = io.inputs;
+        }
         // Headers
         let headers = Object.assign({}, io.request.headers);
         if (io.request.connection && io.request.connection.remoteAddress) {

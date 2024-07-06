@@ -40,8 +40,10 @@ function HttpConnection() {
             if (callback.fn != null) {
                 req.inputs = callback.urlInputs;
                 var inputs = getInputs(body == "" ? null : body, url, req.method, contentType);
-                for (var property in inputs) {
-                    req.inputs[property] = inputs[property];
+                if (typeof inputs === "object") {
+                    for (var property in inputs) {
+                        req.inputs[property] = inputs[property];
+                    }
                 }
                 req.baseUrl = getBaseUrl(url);
                 callback.fn(req, res);
@@ -139,7 +141,7 @@ function HttpConnection() {
             if (contentType != null && contentType.indexOf("json") > 0) {
                 retval = { ...retval, ...JSON.parse(body) };
             } else if (contentType != null && contentType.indexOf("form-data") > 0) {
-                retval = body;
+                retval["form-data"] = Buffer.from(body).toString('base64');;
             } else {
                 retval["data-raw"] = body;
             }

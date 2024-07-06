@@ -113,8 +113,12 @@ class Consumer extends ConsumerInterface {
         let data = null;
         if (message.data.payload
             && Object.keys(message.data.payload).length !== 0
-            && Object.getPrototypeOf(message.data.payload) === Object.prototype) {
-            data = message.data.payload;
+            && Object.getPrototypeOf(message.data.payload) === Object.prototype) {            
+            if (message.data.payload["form-data"] != null) {
+                data = Buffer.from(message.data.payload["form-data"], 'base64').toString('utf-8');
+            } else {
+                data = message.data.payload;
+            }
         }
         retVal.data = data;
 
