@@ -3,7 +3,7 @@ const axios = require('axios');
 var queueServerInstance = null;
 var config = null;
 class QueueServer {
-    constructor($event, $config, $producerManager, $messageManager, $consumerManager) {
+    constructor($event, $config, $producerManager, $messageManager, $consumerManager, $logger) {
         config = $config;
         this.isRunning = false;
         this.$event = $event;
@@ -11,6 +11,7 @@ class QueueServer {
         this.$producerManager = $producerManager;
         this.$messageManager = $messageManager;
         this.$consumerManager = $consumerManager;
+        this.$logger = $logger;
         queueServerInstance = this;
         this.interval = null;
         this.$event.listen('consumer::response', this.onConsumerResponse);
@@ -30,12 +31,13 @@ class QueueServer {
             // consumer
             this.$event.listen('consumer::done', this.onConsumerDone);
             this.isRunning = true;
+            this.$logger.debug('QueueServer is started successfully.');
             return true;
         }
         return false;
     }
 
-    stop() {
+    pause() {
         if (this.isRunning) {
             // handleIfAnyConsumerIsIdle Interval
             if (this.interval != null) {
@@ -46,11 +48,27 @@ class QueueServer {
             // consumer
             this.$event.unlisten('consumer::done', this.onConsumerDone);
             this.isRunning = false;
+            this.$logger.debug('QueueServer is paused successfully.');
             return true;
         }
         return false;
     }
 
+    reload() {
+        var retval = false;
+        this.pause();
+        if (!this.isRunning && this.$consumerManager.isAllConsumersIdle()) {
+            this.$logger.debug('QueueServer is trying to reload...');
+            setInterval(() => {
+                if (this.$consumerManager.isAllConsumersIdle()) {
+                    // Perform your desired action here
+                    retval = true;
+                    this.$logger.debug('QueueServer is reloaded successfully.');
+                }
+            }, 5000);
+        }
+        return retval;
+    }
 
     reload() {
         this.stop();
@@ -155,7 +173,7 @@ class QueueServer {
         if (idleConsumers && idleConsumers.length > 0) {
             self.shuffleArray(idleConsumers);
             idleConsumers.forEach(consumer => {
-                console.log('idleConsumer', consumer.name);
+                this.$logger.debug('idleConsumer', consumer.name);
                 self.$messageManager.getMessageBy({ last_consumer: consumer.name, "delay_to": Date.now() }, (consumer.qos - consumer.processing_request_count), function (messages) {
                     for (let index = 0; index < messages.length; index++) {
                         let msg = messages[index];
@@ -223,13 +241,13 @@ class QueueServer {
                     method: 'POST',
                     url: responseData.message.postback_url,
                     data: {
-                        request: responseData.message.data,
+                        request: {},
                         result: responseData.response.data
                     }
                 })
                     .then()
                     .catch(function (error) {
-                        console.log('Postback::error: ' + responseData.message.code + " - " + error.message);
+                        this.$logger.warning('Postback::error: ' + responseData.message.code + " - " + error.message);
                     });
             } else {
                 // return to itself
@@ -238,7 +256,7 @@ class QueueServer {
                     try {
                         producer.io.status(responseData.response.status).json(responseData.response.data);
                     } catch (error) {
-                        console.log('Response::error: ' + error.message);
+                        this.$logger.warning('Response::error: ' + error.message);
                     }
                 }
             }

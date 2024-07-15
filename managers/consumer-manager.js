@@ -1,5 +1,5 @@
 const Consumer = require(__dir + "/objects/consumer");
-const config = require(__dir + "/core/app/config"); 
+const config = require(__dir + "/core/app/config");
 const event = require(__dir + "/core/app/event");
 const logger = (require(__dir + "/core/log/logger-factory")).getLogger();
 
@@ -45,7 +45,7 @@ class ConsumerManager {
         }
         let havingAnyValidConsumer = false;
         consumer.paths.forEach(path => {
-            let regex = new RegExp(path); 
+            let regex = new RegExp(path);
             if (regex.test(message.data.url)) {
                 havingAnyValidConsumer = consumer;
             }
@@ -85,7 +85,7 @@ class ConsumerManager {
             consumer.requestTimeout = item.requestTimeout ? item.requestTimeout : consumer.requestTimeout
             consumer.is_callback = item.is_callback;
             consumer.postback_url = item.postback_url;
-            
+
             self.consumers.push(consumer);
         });
     }
@@ -99,6 +99,18 @@ class ConsumerManager {
             }
         }
         return retVal.length > 0 ? retVal : false;
+    }
+
+    isAllConsumersIdle() {
+        var retVal = true;
+        for (let index = 0; index < this.consumers.length; index++) {
+            const consumer = this.consumers[index];
+            if (consumer.processing_request_count > 0) {
+                retVal = false;
+                break;
+            }
+        }
+        return retVal;
     }
 }
 
