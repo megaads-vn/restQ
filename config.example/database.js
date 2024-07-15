@@ -7,6 +7,9 @@ module.exports = {
         password: '',
         charset: 'utf8mb4_unicode_ci'
     },
+    migrations: {
+        tableName: 'knex_migrations'
+    },
     message: {
         index: 'getMessage'
     }
