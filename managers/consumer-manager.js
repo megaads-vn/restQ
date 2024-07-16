@@ -74,7 +74,7 @@ class ConsumerManager {
         let self = this;
         self.consumers = [];
 
-        let configConsumers = self.$config.get("consumers.consumers");
+        let configConsumers = self.$config.get("consumers.consumers", {}, true);
         configConsumers.forEach(item => {
             let consumer = new Consumer(self.$config, self.$event, self.$logger);
             consumer.origin = item.origin;

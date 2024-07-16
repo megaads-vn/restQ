@@ -16,9 +16,9 @@ function Config() {
      * @param {} defaultValue
      * @returns {}
      */
-    this.get = function (key, defaultValue) {
+    this.get = function (key, defaultValue, ignoreCache = false) {
         var retval = defaultValue;
-        if (configContainer[key] != null) {
+        if (!ignoreCache && configContainer[key] != null) {
             retval = configContainer[key];
         } else {
             key = key.replaceAll(".", "/");
@@ -27,23 +27,28 @@ function Config() {
             try {
                 var property = path.substring(path.lastIndexOf("/") + 1, path.length);
                 if (fs.existsSync(path + ".js")) {
-                    retval = require(path);
-                } else if (fs.existsSync(parentPath + ".js")) {                    
-                    if ((require(parentPath))[property] != null) {
-                        retval = (require(parentPath))[property];
+                    retval = requireUncached(path);
+                } else if (fs.existsSync(parentPath + ".js")) {
+                    if ((requireUncached(parentPath))[property] != null) {
+                        retval = (requireUncached(parentPath))[property];
                     }
                 } else if (key.indexOf("package") == 0) {
-                    retval = (require(__dir + "/package.json"))[property];
+                    retval = (requireUncached(__dir + "/package.json"))[property];
                 }
                 configContainer[key] = retval;
             } catch (exc) {
             }
         }
         if (retval == null) {
-            
+
         }
         return retval;
     };
+
+    function requireUncached(module) {
+        delete require.cache[require.resolve(module)];
+        return require(module);
+    }
     /**
      * Set config value
      * @param {String} key
