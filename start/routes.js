@@ -26,7 +26,10 @@ module.exports = function ($route, $logger, $config) {
     $route.post("/monitor/start", "MonitorController@start", {
         before: auth
     });
-    $route.post("/monitor/stop", "MonitorController@stop", {
+    $route.post("/monitor/pause", "MonitorController@pause", {
+        before: auth
+    });
+    $route.post("/monitor/reload", "MonitorController@reload", {
         before: auth
     });
     $route.any("/*", "MessageController@onRequest", {

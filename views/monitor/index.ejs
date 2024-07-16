@@ -7,8 +7,8 @@
 <body>
     <script src="https://code.highcharts.com/highcharts.js"></script>
     <div style="padding: 20px;background-color: rgb(51, 50, 47); margin-bottom: 50px; border-radius: 5px;">
-        <button id="startButton" onclick="start()" style="padding: 20px;background-color: green;">Start</button>
-        <button id="stopButton" onclick="stop()" style="padding: 20px;background-color: red;">Stop</button>
+        <button id="reloadButton" onclick="reload()" style="padding: 20px;background-color: green;">Reload</button>
+        <button id="pauseButton" onclick="pause()" style="padding: 20px;background-color: red;">Pause</button>
         
         <h3 id="loadingMessage" style="display: none;">Loading...</h3>
         <h3 id="successMessage" style="display: inline; color: green;"><%= serverStatus %></h3>
@@ -52,9 +52,25 @@
         var successMessage = document.getElementById('successMessage');
         var failedMessage = document.getElementById('failedMessage');
 
-        function stop() {
+        function pause() {
             showLoadingMessage();
-            fetch('/monitor/stop?token=' + authToken, {
+            fetch('/monitor/pause?token=' + authToken, {
+                method: 'POST',
+                body: {
+                    token: authToken
+                }
+            })
+            .then(async response => {
+                showSucessMessage(await response.text());
+            })
+            .catch(error => {
+                showFailedMessage(error.message);
+            });
+        }
+
+        function reload() {
+            showLoadingMessage();
+            fetch('/monitor/reload?token=' + authToken, {
                 method: 'POST',
                 body: {
                     token: authToken

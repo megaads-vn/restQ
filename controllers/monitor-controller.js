@@ -42,13 +42,19 @@ function MonitorController($event, $config, $queueServer) {
         }
         io.render("/monitor/index", {
             "summaryData": summaryData,
-            "serverStatus": $queueServer.isRunning ? "Running" : "Stopped",
+            "serverStatus": $queueServer.isRunning ? "Running" : "Paused",
             "authToken": $config.get("auth.token"),
         });
     }
-    this.stop = function (io) {
+    this.pause = function (io) {
         io.json({
-            status: $queueServer.stop(),
+            status: $queueServer.pause(),
+            is_running: $queueServer.isRunning
+        });
+    }
+    this.reload = async function (io) {
+        io.json({
+            status: await $queueServer.reload(),
             is_running: $queueServer.isRunning
         });
     }

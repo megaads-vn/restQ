@@ -54,25 +54,24 @@ class QueueServer {
         return false;
     }
 
-    reload() {
+    async reload() {
         var retval = false;
         this.pause();
-        if (!this.isRunning && this.$consumerManager.isAllConsumersIdle()) {
-            this.$logger.debug('QueueServer is trying to reload...');
-            setInterval(() => {
-                if (this.$consumerManager.isAllConsumersIdle()) {
-                    // Perform your desired action here
+        this.$logger.debug('QueueServer is trying to reload...');
+        return new Promise((resolve, reject) => {
+            var tryReloadInterval = setInterval(() => {
+                if (this.isRunning) {
+                    clearInterval(tryReloadInterval);
+                    resolve(retval);
+                } else if (this.$consumerManager.isAllConsumersIdle()) {
+                    clearInterval(tryReloadInterval);
+                    this.start();
                     retval = true;
                     this.$logger.debug('QueueServer is reloaded successfully.');
+                    resolve(retval);
                 }
-            }, 5000);
-        }
-        return retval;
-    }
-
-    reload() {
-        this.stop();
-        this.start();
+            }, 2000);
+        });            
     }
 
     async publish(io) {
@@ -95,7 +94,7 @@ class QueueServer {
 
         messageObject.is_callback = io.inputs.is_callback;
         messageObject.postback_url = io.inputs.postback_url;
-        
+
         if (isWaitingAResponse) {
             await this.$producerManager.push({ io, message: messageObject })
         }
@@ -106,17 +105,17 @@ class QueueServer {
             this.$event.fire('message::push', messageObject);
         }
     }
-    
+
     async onConsumerResponse(eventType, data) {
         let self = queueServerInstance;
-        if (data.status == 'successful' 
+        if (data.status == 'successful'
             && config.get("consumers.removeMessageAfterProcessing", false)) {
             await self.$messageManager.removeMessage(data.message);
         } else {
             await self.$messageManager.update(data.message);
         }
         self.$event.fire('consumer::done', data.consumer);
-        if (data.status == 'successful') {            
+        if (data.status == 'successful') {
             self.respond(data);
         } else if (data.status == 'error') {
             if (data.errorCode === 'ECONNABORTED' || (data.errorCode !== 'ECONNABORTED' && data.message.retry_count >= self.consumerMaxRetryCount)) {
