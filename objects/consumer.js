@@ -68,6 +68,7 @@ class Consumer extends ConsumerInterface {
                     self.processing_request_count--;
                     if (message.last_processing_at > message.first_processing_at) {
                         message.retry_count++;
+                        message.delay_to = Date.now() + Math.pow(self.$config.get("consumers.retryTime"), message.retry_count) * 1000;
                     }
                     message.last_consumer = self.name;
 
