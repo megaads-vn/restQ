@@ -5,14 +5,14 @@ const knex = require('knex');
 function MonitorController($event, $config, $queueServer) {
     const dbConnection = knex($config.get("database"));
     var summaryDays = 7;
-    const summaryDateLabels = [];
-    for (let i = 0; i < summaryDays; i++) {
-        const date = moment().subtract(i, 'days').format('YYYY-MM-DD');
-        summaryDateLabels.push(date);
-    }
-    this.index = async function (io) {        
+    this.index = async function (io) {
         var summaryData = [];
         var consumers = $config.get("consumers.consumers");
+        let summaryDateLabels = [];
+        for (let i = 0; i < summaryDays; i++) {
+            const date = moment().subtract(i, 'days').format('YYYY-MM-DD');
+            summaryDateLabels.push(date);
+        }
         for (let index = 0; index < consumers.length; index++) {
             let consumerSummaryData = {
                 name: consumers[index].name,
