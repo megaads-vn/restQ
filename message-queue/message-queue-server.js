@@ -1,8 +1,8 @@
-const Message = require(__dir + "/objects/message");
+const Message = require("./message/message");
 const axios = require('axios');
-var queueServerInstance = null;
+var mqServerInstance = null;
 var config = null;
-class QueueServer {
+class MQServer {
     constructor($event, $config, $producerManager, $messageManager, $consumerManager, $logger) {
         config = $config;
         this.isRunning = false;
@@ -12,7 +12,7 @@ class QueueServer {
         this.$messageManager = $messageManager;
         this.$consumerManager = $consumerManager;
         this.$logger = $logger;
-        queueServerInstance = this;
+        mqServerInstance = this;
         this.interval = null;
         this.$event.listen('consumer::response', this.onConsumerResponse);
         this.start();
@@ -31,7 +31,7 @@ class QueueServer {
             // consumer
             this.$event.listen('consumer::done', this.onConsumerDone);
             this.isRunning = true;
-            this.$logger.debug('QueueServer is started successfully.');
+            this.$logger.debug('MQServer is started successfully.');
             return true;
         }
         return false;
@@ -48,7 +48,7 @@ class QueueServer {
             // consumer
             this.$event.unlisten('consumer::done', this.onConsumerDone);
             this.isRunning = false;
-            this.$logger.debug('QueueServer is paused successfully.');
+            this.$logger.debug('MQServer is paused successfully.');
             return true;
         }
         return false;
@@ -57,7 +57,7 @@ class QueueServer {
     async reload() {
         var retval = false;
         this.pause();
-        this.$logger.debug('QueueServer is trying to reload...');
+        this.$logger.debug('MQServer is trying to reload...');
         return new Promise((resolve, reject) => {
             var tryReloadInterval = setInterval(() => {
                 if (this.isRunning) {
@@ -67,7 +67,7 @@ class QueueServer {
                     clearInterval(tryReloadInterval);
                     this.start();
                     retval = true;
-                    this.$logger.debug('QueueServer is reloaded successfully.');
+                    this.$logger.debug('MQServer is reloaded successfully.');
                     resolve(retval);
                 }
             }, 2000);
@@ -93,7 +93,8 @@ class QueueServer {
         let isWaitingAResponse = this.handleCallbackInRequestFromProducer(io, messageObject);
 
         messageObject.is_callback = io.inputs.is_callback;
-        messageObject.postback_url = io.inputs.postback_url;
+        messageObject.postback_url = io.inputs.is_callback;
+        messageObject.is_postback_inputs = io.inputs.postback_url;
 
         if (isWaitingAResponse) {
             await this.$producerManager.push({ io, message: messageObject })
@@ -107,7 +108,7 @@ class QueueServer {
     }
 
     async onConsumerResponse(eventType, data) {
-        let self = queueServerInstance;
+        let self = mqServerInstance;
         if (data.status == 'successful'
             && config.get("consumers.removeMessageAfterProcessing", false)) {
             await self.$messageManager.removeMessage(data.message);
@@ -125,7 +126,7 @@ class QueueServer {
     }
 
     onConsumerDone(eventType, consumer) {
-        let self = queueServerInstance;
+        let self = mqServerInstance;
         self.$messageManager.getMessageBy({ "last_consumer": consumer.name, "delay_to": Date.now() }, (consumer.qos - consumer.processing_request_count), function (messages) {
             for (let index = 0; index < messages.length; index++) {
                 let msg = messages[index];
@@ -146,7 +147,7 @@ class QueueServer {
     }
 
     onNewMessage(eventType, messageObject) {
-        let self = queueServerInstance;
+        let self = mqServerInstance;
         self.$messageManager.getMessageBy({ "code": messageObject.code, "delay_to": Date.now() }, 1, function (messages) {
             if (messages.length == 1) {
                 let msg = messages[0];
@@ -172,8 +173,9 @@ class QueueServer {
         if (idleConsumers && idleConsumers.length > 0) {
             self.shuffleArray(idleConsumers);
             idleConsumers.forEach(consumer => {
-                this.$logger.debug('idleConsumer', consumer.name);
                 self.$messageManager.getMessageBy({ last_consumer: consumer.name, "delay_to": Date.now() }, (consumer.qos - consumer.processing_request_count), function (messages) {
+                    self.$logger.debug("Idle consumer", consumer.name);
+                    self.$logger.debug("-> Feeding '" + consumer.name + "' " + messages.length + " message(s).");
                     for (let index = 0; index < messages.length; index++) {
                         let msg = messages[index];
                         let consumer = self.$consumerManager.getConsumer(msg);
@@ -233,23 +235,27 @@ class QueueServer {
     respond(responseData) {
         // default responseData.message.is_callback is 1
         if (typeof responseData.message.is_callback === 'undefined' || responseData.message.is_callback) {
-            // return 
             if (responseData.message.postback_url) {
-                // return to postback_url
+                // respond to postback_url
+                let consumer = this.$consumerManager.getConsumer(messageObject, false);
+                let postBackRequestData = {};
+                if (consumer != null && (consumer.postback_include_request_data !== false || consumer.postback_include_request_data == 0)) {
+                    postBackRequestData = responseData.message.data;
+                }
                 axios({
                     method: 'POST',
                     url: responseData.message.postback_url,
                     data: {
-                        request: {},
+                        request: postBackRequestData,
                         result: responseData.response.data
                     }
                 })
-                    .then()
-                    .catch(function (error) {
-                        this.$logger.warning('Postback::error: ' + responseData.message.code + " - " + error.message);
-                    });
+                .then()
+                .catch(function (error) {
+                    this.$logger.warning('Postback::error: ' + responseData.message.code + " - " + error.message);
+                });
             } else {
-                // return to itself
+                // respond to producer
                 let producer = this.$producerManager.getProducer(responseData.message.code);
                 if (producer) {
                     try {
@@ -270,4 +276,4 @@ class QueueServer {
     }
 }
 
-module.exports = QueueServer;
+module.exports = MQServer;

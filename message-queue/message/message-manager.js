@@ -1,6 +1,6 @@
 const config = require(__dir + "/core/app/config");
 const knex = require('knex')(config.get("database"));
-const Message = require(__dir + "/objects/message");
+const Message = require("./message");
 var lock = new (require('async-lock'))({
     maxPending: 1000000,
     maxExecutionTime: 3000,

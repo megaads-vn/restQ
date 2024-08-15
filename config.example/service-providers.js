@@ -2,10 +2,10 @@ var config = require(__dir + "/core/app/config");
 var routerLoader = require(__dir + "/core/loader/route-loader");
 var event = require(__dir + "/core/app/event");
 var logger = (require(__dir + "/core/log/logger-factory")).getLogger();
-var messageManager = require(__dir + "/managers/message-manager");
-var consumerManager = require(__dir + "/managers/consumer-manager");
-var producerManager = require(__dir + "/managers/producer-manager");
-var queueServer = new (require(__dir + "/queue-server/queue-server"))(event, config, producerManager, messageManager, consumerManager, logger);
+var messageManager = require(__dir + "/message-queue/message/message-manager");
+var consumerManager = require(__dir + "/message-queue/consumer/consumer-manager");
+var producerManager = require(__dir + "/message-queue/producer/producer-manager");
+var queueServer = new (require(__dir + "/message-queue/message-queue-server"))(event, config, producerManager, messageManager, consumerManager, logger);
 
 module.exports = function ($serviceContainer) {
     $serviceContainer.bind("$config", config);

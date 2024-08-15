@@ -1,4 +1,4 @@
-const Consumer = require(__dir + "/objects/consumer");
+const Consumer = require("./consumer");
 const config = require(__dir + "/core/app/config");
 const event = require(__dir + "/core/app/event");
 const logger = (require(__dir + "/core/log/logger-factory")).getLogger();

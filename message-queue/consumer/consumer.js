@@ -1,4 +1,4 @@
-const ConsumerInterface = require(__dir + "/interfaces/consumer-interface");
+const ConsumerInterface = require("./consumer-interface");
 const axios = require('axios');
 const urlPackage = require('url');
 

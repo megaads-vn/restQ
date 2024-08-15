@@ -1,4 +1,4 @@
-const Producer = require(__dir + "/objects/producer");
+const Producer = require("./producer");
 
 class ProducerManager {
     constructor() {
