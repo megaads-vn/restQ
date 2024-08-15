@@ -22,7 +22,7 @@
             let consumerData = summaryData[index];
             var chartContainer = document.createElement('div');
             document.body.appendChild(chartContainer);
-            Highcharts.chart(chartContainer, {
+            let chartConfig = {
                 chart: {
                     type: 'column',
                     options3d: {
@@ -39,13 +39,20 @@
                 xAxis: {
                     categories: consumerData.labels
                 },
-                yAxis: {
-                    title: {
-                        text: 'Messages'
-                    }
-                },
+                yAxis: [],
                 series: consumerData.data
-            });
+            }
+            for (let index = 0; index < consumerData.data.length; index++) {
+                chartConfig.yAxis.push({
+                    title: {
+                        text: null
+                    },
+                    labels: {
+                        enabled: false
+                    }
+                });
+            }
+            Highcharts.chart(chartContainer, chartConfig);
         }
 
         var loadingMessage = document.getElementById('loadingMessage');

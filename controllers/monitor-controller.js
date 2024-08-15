@@ -21,22 +21,30 @@ function MonitorController($event, $config, $queueServer) {
             };
             const consumer = consumers[index];
             const waitingSummary = await summaryMessages(consumer.name, "WAITING", summaryDays);
+            const processingSummary = await summaryMessages(consumer.name, "PROCESSING", summaryDays);
             const failedSummary = await summaryMessages(consumer.name, "FAILED", summaryDays);
             let waitingSummaryByDate = {
                 name: "WAITING",
                 data: []
             }
-            let failedSummaryByDate = {
+            let processingSummaryByDate = {
+                name: "PROCESSING",
+                data: []
+            }
+            let failedSummaryByDate = { 
                 name: "FAILED",
                 data: []
             };
             summaryDateLabels.forEach(date => {
                 const waiting = waitingSummary.find(row => row.date === date);
                 waitingSummaryByDate.data.push(waiting ? waiting.count : 0);
+                const processing = processingSummary.find(row => row.date === date);
+                processingSummaryByDate.data.push(processing ? processing.count : 0);
                 const failed = failedSummary.find(row => row.date === date);
-                failedSummaryByDate.data.push(failed ? failed.count : 0);
+                failedSummaryByDate.data.push(failed ? failed.count : 0);                
             });
             consumerSummaryData.data.push(waitingSummaryByDate);
+            consumerSummaryData.data.push(processingSummaryByDate);
             consumerSummaryData.data.push(failedSummaryByDate);
             summaryData.push(consumerSummaryData);
         }
