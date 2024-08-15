@@ -40,9 +40,10 @@
                     categories: consumerData.labels
                 },
                 yAxis: [],
-                series: consumerData.data
+                series: []
             }
             for (let index = 0; index < consumerData.data.length; index++) {
+                let item = consumerData.data[index];                
                 chartConfig.yAxis.push({
                     title: {
                         text: null
@@ -51,6 +52,8 @@
                         enabled: false
                     }
                 });
+                item.yAxis = index;
+                chartConfig.series.push(item);
             }
             Highcharts.chart(chartContainer, chartConfig);
         }
