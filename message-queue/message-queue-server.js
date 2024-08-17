@@ -93,8 +93,7 @@ class MQServer {
         let isWaitingAResponse = this.handleCallbackInRequestFromProducer(io, messageObject);
 
         messageObject.is_callback = io.inputs.is_callback;
-        messageObject.postback_url = io.inputs.is_callback;
-        messageObject.is_postback_inputs = io.inputs.postback_url;
+        messageObject.postback_url = io.inputs.postback_url;
 
         if (isWaitingAResponse) {
             await this.$producerManager.push({ io, message: messageObject })
