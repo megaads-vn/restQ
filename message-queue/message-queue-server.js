@@ -238,7 +238,7 @@ class MQServer {
         if (typeof responseData.message.is_callback === 'undefined' || responseData.message.is_callback) {
             if (responseData.message.postback_url) {
                 // respond to postback_url
-                let consumer = this.$consumerManager.getConsumer(messageObject, false);
+                let consumer = this.$consumerManager.getConsumer(responseData.message, false);
                 let postBackRequestData = {};
                 if (consumer != null && (consumer.postback_include_request_data !== false || consumer.postback_include_request_data == 0)) {
                     postBackRequestData = responseData.message.data;
