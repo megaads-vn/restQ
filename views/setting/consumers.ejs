@@ -34,14 +34,23 @@
 
         function save() {
             showLoadingMessage();
+
+            var bodyData = "";
+
+            try {
+                bodyData = JSON.stringify({
+                    'consumers': jsonEditor.get()
+                });   
+            } catch (error) {
+                showFailedMessage(error.message);
+                return;
+            }                        
             fetch('/setting/consumers?token=' + authToken, {
-                method: 'POST',
-                headers: {
+                'method': 'POST',
+                'headers': {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    'consumers': jsonEditor.get()
-                })
+                'body': bodyData
             })
             .then(async response => {
                 showSucessMessage(await response.text());

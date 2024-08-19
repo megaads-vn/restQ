@@ -99,7 +99,7 @@ function HttpConnection() {
                 getCallbackWithRoutePattern(retval, url, this.requestCallbacks[method]);
             }
             // Match asset url
-            if (retval.fn == null && retval.urlInputs.length === 0) {
+            if (retval.fn == null && (Object.keys(retval.urlInputs).length === 0 || retval.urlInputs.length === 0)) {
                 retval.fn = this.assetAPI;
             }
         } else {
