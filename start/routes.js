@@ -32,6 +32,12 @@ module.exports = function ($route, $logger, $config) {
     $route.post("/monitor/reload", "MonitorController@reload", {
         before: auth
     });
+    $route.get("/setting/consumers", "SettingController@viewConsumers", {
+        before: auth
+    });
+    $route.post("/setting/consumers", "SettingController@saveConsumers", {
+        before: auth
+    });
     $route.any("/*", "MessageController@onRequest", {
         before: function (io) {
             io.header("Access-Control-Allow-Origin", "*")

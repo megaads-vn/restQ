@@ -6,13 +6,17 @@
 
 <body>
     <script src="https://code.highcharts.com/highcharts.js"></script>
-    <div style="padding: 20px;background-color: rgb(51, 50, 47); margin-bottom: 50px; border-radius: 5px;">
-        <button id="reloadButton" onclick="reload()" style="padding: 20px;background-color: green;">Reload</button>
-        <button id="pauseButton" onclick="pause()" style="padding: 20px;background-color: red;">Pause</button>
+    <div style="padding: 20px;background-color: black; margin-bottom: 50px; border-radius: 5px;">        
+        <h1 style="color: wheat;">RestQ Monitor</h1>
+
+        <button id="reloadButton" onclick="reload()" style="border-radius: 10px; padding: 20px;background-color: green;">Reload</button>
+        <button id="pauseButton" onclick="pause()" style="border-radius: 10px; padding: 20px;background-color: red;">Pause</button>
         
         <h3 id="loadingMessage" style="display: none;">Loading...</h3>
         <h3 id="successMessage" style="display: inline; color: green;"><%= serverStatus %></h3>
         <h3 id="failedMessage" style="display: none; color: red;"></h3>
+
+        <a href="/setting/consumers?token=<%- authToken %>" target="_blank" style="font-size: large; float: right; padding: 20px; color: green;">Consumers Setting</a>
     </div>
 
     <script>

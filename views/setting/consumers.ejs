@@ -1,0 +1,73 @@
+<html>
+
+<head>
+    <title>RestQ Consumers Setting</title>
+</head>
+
+<body>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <div style="padding: 20px;background-color: black; margin-bottom: 50px; border-radius: 5px;">        
+        <h1 style="color: wheat;">RestQ - Consumer Setting</h1>
+        <button id="reloadButton" onclick="save()" style="border-radius: 10px; padding: 20px;background-color: red;">Save and Reload MQ Server</button>
+        
+        <h3 id="loadingMessage" style="display: none;">Loading...</h3>
+        <h3 id="successMessage" style="display: inline; color: green;"></h3>
+        <h3 id="failedMessage" style="display: none; color: red;">Save failed</h3>
+    </div>
+
+    <div id="jsonEditorContainer"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.1.9/jsoneditor.min.js"></script>           
+
+    <script>
+        var consumers = <%- JSON.stringify(consumers) %>;
+        var authToken = "<%- authToken %>";
+        
+        var jsonEditor = new JSONEditor(document.getElementById('jsonEditorContainer'), {
+            mode: 'code',
+            onChange: function() {
+                // Handle changes in the JSON editor
+            }
+        });
+        // Set the initial JSON data
+        jsonEditor.set(consumers);
+
+        function save() {
+            showLoadingMessage();
+            fetch('/setting/consumers?token=' + authToken, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    'consumers': jsonEditor.get()
+                })
+            })
+            .then(async response => {
+                showSucessMessage(await response.text());
+            })
+            .catch(error => {
+                showFailedMessage(error.message);
+            });
+        }
+
+        function showLoadingMessage() {
+            loadingMessage.style.display = 'inline';
+            successMessage.style.display = 'none';
+            failedMessage.style.display = 'none';
+        }
+        function showSucessMessage(message) {
+            loadingMessage.style.display = 'none';
+            successMessage.style.display = 'inline';
+            failedMessage.style.display = 'none';
+            successMessage.textContent = message;
+        }
+        function showFailedMessage(message) {
+            loadingMessage.style.display = 'none';
+            successMessage.style.display = 'none';
+            failedMessage.style.display = 'inline';
+            failedMessage.textContent = message;
+        }
+    </script>
+
+</html>
