@@ -56,18 +56,19 @@ class MQServer {
 
     async reload() {
         var retval = false;
+        let self = this;
         this.pause();
         this.$logger.debug('MQServer is trying to reload...');
         return new Promise((resolve, reject) => {
             var tryReloadInterval = setInterval(() => {
-                if (this.isRunning) {
+                if (self.isRunning) {
                     clearInterval(tryReloadInterval);
                     resolve(retval);
-                } else if (this.$consumerManager.isAllConsumersIdle()) {
+                } else if (self.$consumerManager.isAllConsumersIdle()) {
                     clearInterval(tryReloadInterval);
-                    this.start();
+                    self.start();
                     retval = true;
-                    this.$logger.debug('MQServer is reloaded successfully.');
+                    self.$logger.debug('MQServer is reloaded successfully.');
                     resolve(retval);
                 }
             }, 2000);
@@ -232,6 +233,7 @@ class MQServer {
     }
 
     respond(responseData) {
+        let self = this;
         // default responseData.message.is_callback is 1
         if (typeof responseData.message.is_callback === 'undefined' || responseData.message.is_callback) {
             if (responseData.message.postback_url) {
@@ -251,16 +253,16 @@ class MQServer {
                 })
                 .then()
                 .catch(function (error) {
-                    this.$logger.warning('Postback::error: ' + responseData.message.code + " - " + error.message);
+                    self.$logger.warning('Postback::error: ' + responseData.message.code + " - " + error.message);
                 });
             } else {
                 // respond to producer
-                let producer = this.$producerManager.getProducer(responseData.message.code);
+                let producer = self.$producerManager.getProducer(responseData.message.code);
                 if (producer) {
                     try {
                         producer.io.status(responseData.response.status).json(responseData.response.data);
                     } catch (error) {
-                        this.$logger.warning('Response::error: ' + error.message);
+                        self.$logger.warning('Response::error: ' + error.message);
                     }
                 }
             }
