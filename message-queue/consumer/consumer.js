@@ -29,10 +29,10 @@ class Consumer extends ConsumerInterface {
     }
 
     async consume(message, requestTimeout, io = null) {
-        this.$logger.debug('Consume.consume: ' + this.name);
-        this.$logger.debug('- message.code: ' + message.code);        
-        this.$logger.debug('- consume.processing_request_count: ' + this.processing_request_count);
-        this.$logger.debug('- consume.qos: ' + this.qos);
+        this.$logger.debug('Consume.consume: ', this.name);
+        this.$logger.debug('- message.code: ', message.code);        
+        this.$logger.debug('- consume.processing_request_count: ', this.processing_request_count);
+        this.$logger.debug('- consume.qos: ', this.qos);
         if (this.processing_request_count < this.qos
             && message.data
             && message.data.url
@@ -84,10 +84,10 @@ class Consumer extends ConsumerInterface {
                     });
                 });
         } else {
-            this.$logger.debug('Consume.consume - QOS ERROR ' + this.name);
-            this.$logger.debug('- message.code: ' + message.code);        
-            this.$logger.debug('- consume.processing_request_count: ' + this.processing_request_count);
-            this.$logger.debug('- consume.qos: ' + this.qos);
+            this.$logger.debug('Consume.consume - QOS ERROR ', this.name);
+            this.$logger.debug('- message.code: ', message.code);        
+            this.$logger.debug('- consume.processing_request_count: ', this.processing_request_count);
+            this.$logger.debug('- consume.qos: ', this.qos);
             message.status = 'WAITING';
             if (message.retry_count == 0) {
                 message.first_processing_at = 0;
