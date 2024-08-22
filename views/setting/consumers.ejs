@@ -5,7 +5,6 @@
 </head>
 
 <body>
-    <script src="https://code.highcharts.com/highcharts.js"></script>
     <div style="padding: 20px;background-color: black; margin-bottom: 50px; border-radius: 5px;">        
         <h1 style="color: wheat;">RestQ - Consumer Setting</h1>
         <button id="reloadButton" onclick="save()" style="border-radius: 10px; padding: 20px;background-color: red;">Save and Reload MQ Server</button>
@@ -14,13 +13,13 @@
         <h3 id="successMessage" style="display: inline; color: green;"></h3>
         <h3 id="failedMessage" style="display: none; color: red;">Save failed</h3>
 
-        <a href="/monitor?token=<%- authToken %>" style="font-size: large; float: right; padding: 20px; color: green;">Consumers Monitor</a>
+        <a href="/monitor?token=<%- authToken %>" style="font-size: large; float: right; padding: 20px; color: green;">RestQ Monitor</a>
     </div>
 
     <div id="jsonEditorContainer"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.1.9/jsoneditor.min.js"></script>           
-
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.1.9/jsoneditor.min.css" rel="stylesheet" type="text/css">
     <script>
         var consumers = <%- JSON.stringify(consumers) %>;
         var authToken = "<%- authToken %>";
