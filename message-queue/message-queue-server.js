@@ -16,6 +16,8 @@ class MQServer {
         this.interval = null;
         this.$event.listen('consumer::response', this.onConsumerResponse);
         this.start();
+        $logger.info('===========================================================');
+        $logger.info('Monitoring available at: /monitor?token=' + $config.get('auth.token'));
     }
 
     start() {
