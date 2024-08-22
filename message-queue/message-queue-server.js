@@ -72,7 +72,7 @@ class MQServer {
                     resolve(retval);
                 }
             }, 2000);
-        });            
+        });
     }
 
     async publish(io) {
@@ -174,21 +174,23 @@ class MQServer {
             self.shuffleArray(idleConsumers);
             idleConsumers.forEach(consumer => {
                 self.$messageManager.getMessageBy({ last_consumer: consumer.name, "delay_to": Date.now() }, (consumer.qos - consumer.processing_request_count), function (messages) {
-                    self.$logger.debug("Idle consumer", consumer.name);
-                    self.$logger.debug("-> Feeding '" + consumer.name + "' " + messages.length + " message(s).");
-                    for (let index = 0; index < messages.length; index++) {
-                        let msg = messages[index];
-                        let consumer = self.$consumerManager.getConsumer(msg);
-                        if (consumer) {
-                            let producer = self.$producerManager.getProducer(msg.code);
-                            self.feedConsumerAMessage(consumer, msg, producer ? producer.io : null);
-                        } else {
-                            if (msg.retry_count == 0) {
-                                msg.first_processing_at = 0;
-                                msg.last_processing_at = 0;
+                    if (messages.length > 0) {
+                        self.$logger.debug("Idle consumer", consumer.name);
+                        self.$logger.debug("-> Feeding '" + consumer.name + "' " + messages.length + " message(s).");
+                        for (let index = 0; index < messages.length; index++) {
+                            let msg = messages[index];
+                            let consumer = self.$consumerManager.getConsumer(msg);
+                            if (consumer) {
+                                let producer = self.$producerManager.getProducer(msg.code);
+                                self.feedConsumerAMessage(consumer, msg, producer ? producer.io : null);
+                            } else {
+                                if (msg.retry_count == 0) {
+                                    msg.first_processing_at = 0;
+                                    msg.last_processing_at = 0;
+                                }
+                                msg.status = 'WAITING';
+                                self.$messageManager.update(msg);
                             }
-                            msg.status = 'WAITING';
-                            self.$messageManager.update(msg);
                         }
                     }
                 });
