@@ -18,7 +18,7 @@ exports.up = function (knex) {
         table.string('last_consumer', 255).nullable();
         table.timestamp('created_at_time').defaultTo(knex.fn.now());
 
-        table.index(['status', 'retry_count', 'last_consumer', 'delay_to'], 'getMessageBy');
+        table.index(['status', 'retry_count', 'last_consumer', 'delay_to'], 'getMessage');
     });
 };
 
