@@ -244,7 +244,10 @@ class MQServer {
                 // respond to postback_url
                 let consumer = this.$consumerManager.getConsumer(responseData.message, false);
                 let postBackRequestData = {};
-                if (consumer != null && (consumer.postback_include_request_data !== false || consumer.postback_include_request_data == 0)) {
+                if (consumer != null
+                    && (consumer.postback_include_request_data == null
+                        || consumer.postback_include_request_data === true
+                        || consumer.postback_include_request_data === 1)) {
                     postBackRequestData = responseData.message.data;
                 }
                 axios({
