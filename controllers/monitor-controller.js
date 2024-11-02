@@ -8,44 +8,10 @@ function MonitorController($event, $config, $queueServer) {
     this.index = async function (io) {
         var summaryData = [];
         var consumers = $config.get("consumers.consumers");
-        let summaryDateLabels = [];
-        for (let i = 0; i < summaryDays; i++) {
-            const date = moment().subtract(i, 'days').format('YYYY-MM-DD');
-            summaryDateLabels.push(date);
-        }
         for (let index = 0; index < consumers.length; index++) {
             let consumerSummaryData = {
                 name: consumers[index].name,
-                labels: summaryDateLabels,
-                data: []
             };
-            const consumer = consumers[index];
-            const waitingSummary = await summaryMessages(consumer.name, "WAITING", summaryDays);
-            const processingSummary = await summaryMessages(consumer.name, "PROCESSING", summaryDays);
-            const failedSummary = await summaryMessages(consumer.name, "FAILED", summaryDays);
-            let waitingSummaryByDate = {
-                name: "WAITING",
-                data: []
-            }
-            let processingSummaryByDate = {
-                name: "PROCESSING",
-                data: []
-            }
-            let failedSummaryByDate = { 
-                name: "FAILED",
-                data: []
-            };
-            summaryDateLabels.forEach(date => {
-                const waiting = waitingSummary.find(row => row.date === date);
-                waitingSummaryByDate.data.push(waiting ? waiting.count : 0);
-                const processing = processingSummary.find(row => row.date === date);
-                processingSummaryByDate.data.push(processing ? processing.count : 0);
-                const failed = failedSummary.find(row => row.date === date);
-                failedSummaryByDate.data.push(failed ? failed.count : 0);                
-            });
-            consumerSummaryData.data.push(waitingSummaryByDate);
-            consumerSummaryData.data.push(processingSummaryByDate);
-            consumerSummaryData.data.push(failedSummaryByDate);
             summaryData.push(consumerSummaryData);
         }
         io.render("/monitor/index", {
@@ -86,5 +52,51 @@ function MonitorController($event, $config, $queueServer) {
             console.error(error);
             return [];
         }
+    }
+
+    this.getConsumerData = async function (io) {
+        var name = io.inputs.name;
+        var summaryDays = 7;
+        let summaryDateLabels = [];
+        for (let i = 0; i < summaryDays; i++) {
+            const date = moment().subtract(i, 'days').format('YYYY-MM-DD');
+            summaryDateLabels.push(date);
+        }
+        let consumerSummaryData = {
+            name: name,
+            labels: summaryDateLabels,
+            data: []
+        };
+        const waitingSummary = await summaryMessages(name, "WAITING", summaryDays);
+        const processingSummary = await summaryMessages(name, "PROCESSING", summaryDays);
+        const failedSummary = await summaryMessages(name, "FAILED", summaryDays);
+        let waitingSummaryByDate = {
+            name: "WAITING",
+            data: []
+        }
+        let processingSummaryByDate = {
+            name: "PROCESSING",
+            data: []
+        }
+        let failedSummaryByDate = { 
+            name: "FAILED",
+            data: []
+        };
+        summaryDateLabels.forEach(date => {
+            const waiting = waitingSummary.find(row => row.date === date);
+            waitingSummaryByDate.data.push(waiting ? waiting.count : 0);
+            const processing = processingSummary.find(row => row.date === date);
+            processingSummaryByDate.data.push(processing ? processing.count : 0);
+            const failed = failedSummary.find(row => row.date === date);
+            failedSummaryByDate.data.push(failed ? failed.count : 0);                
+        });
+        consumerSummaryData.data.push(waitingSummaryByDate);
+        consumerSummaryData.data.push(processingSummaryByDate);
+        consumerSummaryData.data.push(failedSummaryByDate);
+
+        io.json({
+            status: 'successful',
+            result: consumerSummaryData
+        });
     }
 }

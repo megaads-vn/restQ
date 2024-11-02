@@ -32,6 +32,9 @@ module.exports = function ($route, $logger, $config) {
     $route.post("/monitor/reload", "MonitorController@reload", {
         before: auth
     });
+    $route.get("/monitor/consumer-data", "MonitorController@getConsumerData", {
+        before: auth
+    });
     $route.get("/setting/consumers", "SettingController@viewConsumers", {
         before: auth
     });

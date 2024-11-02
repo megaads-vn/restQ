@@ -6,6 +6,7 @@
 
 <body>
     <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <div style="padding: 20px;background-color: black; margin-bottom: 50px; border-radius: 5px;">        
         <h1 style="color: wheat;">RestQ Monitor</h1>
 
@@ -24,42 +25,46 @@
         var authToken = "<%- authToken %>";
         for (let index = 0; index < summaryData.length; index++) {
             let consumerData = summaryData[index];
-            var chartContainer = document.createElement('div');
-            document.body.appendChild(chartContainer);
-            let chartConfig = {
-                chart: {
-                    type: 'column',
-                    options3d: {
-                        enabled: true,
-                        alpha: 15,
-                        beta: 15,
-                        depth: 50,
-                        viewDistance: 25
+            consumerData = axios.get('/monitor/consumer-data?name=' + consumerData.name + '&token=')
+                .then(response => {
+                    consumerData = response.data.result;
+                    var chartContainer = document.createElement('div');
+                    document.body.appendChild(chartContainer);
+                    let chartConfig = {
+                        chart: {
+                            type: 'column',
+                            options3d: {
+                                enabled: true,
+                                alpha: 15,
+                                beta: 15,
+                                depth: 50,
+                                viewDistance: 25
+                            }
+                        },
+                        title: {
+                            text: "'" + consumerData.name + "' Consumer Summary"
+                        },
+                        xAxis: {
+                            categories: consumerData.labels
+                        },
+                        yAxis: [],
+                        series: []
                     }
-                },
-                title: {
-                    text: "'" + consumerData.name + "' Consumer Summary"
-                },
-                xAxis: {
-                    categories: consumerData.labels
-                },
-                yAxis: [],
-                series: []
-            }
-            for (let index = 0; index < consumerData.data.length; index++) {
-                let item = consumerData.data[index];                
-                chartConfig.yAxis.push({
-                    title: {
-                        text: null
-                    },
-                    labels: {
-                        enabled: false
+                    for (let index = 0; index < consumerData.data.length; index++) {
+                        let item = consumerData.data[index];                
+                        chartConfig.yAxis.push({
+                            title: {
+                                text: null
+                            },
+                            labels: {
+                                enabled: false
+                            }
+                        });
+                        item.yAxis = index;
+                        chartConfig.series.push(item);
                     }
-                });
-                item.yAxis = index;
-                chartConfig.series.push(item);
-            }
-            Highcharts.chart(chartContainer, chartConfig);
+                    Highcharts.chart(chartContainer, chartConfig);
+                })
         }
 
         var loadingMessage = document.getElementById('loadingMessage');
