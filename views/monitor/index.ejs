@@ -25,7 +25,7 @@
         var authToken = "<%- authToken %>";
         for (let index = 0; index < summaryData.length; index++) {
             let consumerData = summaryData[index];
-            consumerData = axios.get('/monitor/consumer-data?name=' + consumerData.name + '&token=')
+            consumerData = axios.get('/monitor/consumer-data?name=' + consumerData.name + '&token=' + authToken)
                 .then(response => {
                     consumerData = response.data.result;
                     var chartContainer = document.createElement('div');
