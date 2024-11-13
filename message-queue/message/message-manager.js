@@ -6,6 +6,9 @@ var lock = new (require('async-lock'))({
     maxExecutionTime: 3000,
     maxOccupationTime: 10000
 });
+const PQueue = require('p-queue').default;
+const queue = new PQueue({ concurrency: 10 });
+
 class MessageManager {
     constructor() {
         this.retryTime = config.get('consumers.retryTime', 5);
@@ -31,20 +34,26 @@ class MessageManager {
         }, 1 * 60 * 60 * 1000);
     }
 
+
     async push(message) {
-        // check duplicated message by message.hash
-        if (message.hash != null && message.hash != '') {
-            if (await knex('message')
-                .where('hash', message.hash)
-                .whereIn('status', ['WAITING', 'PROCESSING'])
-                .first() != null) {
-                message.status = 'DUPLICATED';
-                if (config.get("consumers.ignoreDuplicatedMessages", false)) {
-                    return;
+        await queue.add(async () => {
+            return await knex.transaction(async (trx) => {
+                if (message.hash && message.hash !== '') {
+                    const existingMessage = await trx('message')
+                        .where('hash', message.hash)
+                        .whereIn('status', ['WAITING', 'PROCESSING'])
+                        .first();
+
+                    if (existingMessage) {
+                        message.status = 'DUPLICATED';
+                        if (config.get("consumers.ignoreDuplicatedMessages", false)) {
+                            return;
+                        }
+                    }
                 }
-            }
-        }
-        return await knex('message').insert(message.serialize());
+                return await trx('message').insert(message.serialize());
+            });
+        });
     }
 
     async getMessageBy(messageCondition = null, limit = 1, callbackFn = null) {
@@ -109,9 +118,9 @@ class MessageManager {
                             self.orWhere('path', 'REGEXP', path);
                         });
                     })
-                    // .orderBy('priority', 'desc')
-                    // .orderBy('retry_count', 'asc')
-                    //.orderBy('id', 'asc');
+                // .orderBy('priority', 'desc')
+                // .orderBy('retry_count', 'asc')
+                //.orderBy('id', 'asc');
             } else if (messageCondition.last_consumer) {
                 retVal = retVal.where('status', 'WAITING')
                     .where('retry_count', '>=', 0)
@@ -121,9 +130,9 @@ class MessageManager {
                     //     self.retryTime
                     // ])
                     .where('last_consumer', '=', messageCondition.last_consumer)
-                    // .orderBy('priority', 'desc')
-                    // .orderBy('retry_count', 'asc')
-                    //.orderBy('id', 'asc');
+                // .orderBy('priority', 'desc')
+                // .orderBy('retry_count', 'asc')
+                //.orderBy('id', 'asc');
             }
             if (messageCondition.delay_to) {
                 retVal = retVal.where('delay_to', '>=', 0)
