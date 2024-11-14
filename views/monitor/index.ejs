@@ -80,7 +80,7 @@
 
                 document.body.appendChild(chartContainer);
 
-                axios.get('/monitor/consumer-data?name=' + consumerData.name + '&token=')
+                axios.get('/monitor/consumer-data?name=' + consumerData.name + '&token=' + authToken)
                     .then(response => {
                         consumerData = response.data.result.consumerSummaryData;
                         var consumerStat = response.data.result.consumerStat;
@@ -98,7 +98,7 @@
                                 }
                             },
                             title: {
-                                text: "'" + consumerData.name + "' Consumer Summary. AVG Time: " + consumerStat?.avg_time
+                                text: "'" + consumerData.name + "' Consumer Summary. AVG Time (ms): " + consumerStat?.avg_time
                             },
                             xAxis: {
                                 categories: consumerData.labels

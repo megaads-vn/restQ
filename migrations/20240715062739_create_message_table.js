@@ -15,7 +15,7 @@ exports.up = function (knex) {
         table.bigInteger('first_processing_at').unsigned().defaultTo(0);
         table.bigInteger('last_processing_at').unsigned().defaultTo(0);
         table.bigInteger('last_processed_at').unsigned().defaultTo(0);
-        table.string('last_consumer', 255).nullable();
+        table.string('last_consumer', 100).nullable();
         table.timestamp('created_at_time').defaultTo(knex.fn.now());
 
         table.index(['status', 'retry_count', 'last_consumer', 'delay_to'], 'getMessage');

@@ -7,7 +7,7 @@ class MQServer {
         config = $config;
         this.isRunning = false;
         this.$event = $event;
-        this.consumerMaxRetryCount = $config.get('consumers.maxRetryCount');
+        this.consumerMaxRetryCount = $config.get('consumers.maxRetryCount', 2);
         this.$producerManager = $producerManager;
         this.$messageManager = $messageManager;
         this.$consumerManager = $consumerManager;
@@ -112,9 +112,12 @@ class MQServer {
 
     async onConsumerResponse(eventType, data) {
         let self = mqServerInstance;
-        if (data.status == 'successful'
-            && config.get("consumers.removeMessageAfterProcessing", false)) {
+        let statAvgProcessingTime = config.get("consumers.statAvgProcessingTime", false);
+        if (statAvgProcessingTime === true) {
             await self.$consumerStatManager.calculateAvgTime(data.message);
+        }
+        if (data.status == 'successful'
+            && config.get("consumers.removeMessageAfterProcessing", false)) {            
             await self.$messageManager.removeMessage(data.message);
         } else {
             await self.$messageManager.update(data.message);

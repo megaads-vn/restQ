@@ -9,6 +9,8 @@ module.exports = {
     // If the timeout is 0, it means it have no timeout!
     defaultRequestTimeout: 5,
 
+    statAvgProcessingTime: false,
+
     removeMessageAfterProcessing: false,
 
     ignoreNotSupportedMessages: true,

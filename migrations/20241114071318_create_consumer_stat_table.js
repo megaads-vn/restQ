@@ -5,7 +5,7 @@
 exports.up = function(knex) {
     return knex.schema.createTable('consumer_stat', function (table) {
         table.bigIncrements('id').primary();
-        table.string('name', 255).nullable();
+        table.string('name', 100).nullable();
         table.integer('count');
         table.float('avg_time').nullable();
     });
