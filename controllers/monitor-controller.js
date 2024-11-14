@@ -54,6 +54,23 @@ function MonitorController($event, $config, $queueServer) {
         }
     }
 
+    async function summaryRetryFailedMessages(consumer = "", days = 7) {
+        try {
+            const rows = await dbConnection('message')
+                .select(dbConnection.raw("DATE_FORMAT(created_at_time, '%Y-%m-%d') as date, count(*) as count"))
+                .where('status', 'FAILED')
+                .andWhere('retry_count', '>', 0)
+                .andWhere('last_consumer', consumer)
+                .andWhere('created_at_time', '>=', moment().subtract(days, 'days').format('YYYY-MM-DD 00:00:00'))
+                .groupByRaw("DATE_FORMAT(created_at_time, '%Y-%m-%d')");
+
+            return rows;
+        } catch (error) {
+            console.error(error);
+            return [];
+        }
+    }
+
     this.getConsumerData = async function (io) {
         var name = io.inputs.name;
         var summaryDays = 7;
@@ -70,6 +87,7 @@ function MonitorController($event, $config, $queueServer) {
         const waitingSummary = await summaryMessages(name, "WAITING", summaryDays);
         const processingSummary = await summaryMessages(name, "PROCESSING", summaryDays);
         const failedSummary = await summaryMessages(name, "FAILED", summaryDays);
+        const retryFailedSummary = await summaryRetryFailedMessages(name, summaryDays);
         let waitingSummaryByDate = {
             name: "WAITING",
             data: []
@@ -82,6 +100,10 @@ function MonitorController($event, $config, $queueServer) {
             name: "FAILED",
             data: []
         };
+        let retryFailedSummaryByDate = { 
+            name: "RETRY_FAILED",
+            data: []
+        };
         summaryDateLabels.forEach(date => {
             const waiting = waitingSummary.find(row => row.date === date);
             waitingSummaryByDate.data.push(waiting ? waiting.count : 0);
@@ -89,14 +111,36 @@ function MonitorController($event, $config, $queueServer) {
             processingSummaryByDate.data.push(processing ? processing.count : 0);
             const failed = failedSummary.find(row => row.date === date);
             failedSummaryByDate.data.push(failed ? failed.count : 0);                
+            const retryFailed = retryFailedSummary.find(row => row.date === date);
+            retryFailedSummaryByDate.data.push(retryFailed ? failed.count : 0);             
         });
         consumerSummaryData.data.push(waitingSummaryByDate);
         consumerSummaryData.data.push(processingSummaryByDate);
         consumerSummaryData.data.push(failedSummaryByDate);
+        consumerSummaryData.data.push(retryFailedSummaryByDate);
+
+        const consumerStat = await getConsumerStat(name);
 
         io.json({
             status: 'successful',
-            result: consumerSummaryData
+            result: {
+                consumerSummaryData,
+                consumerStat
+            }
         });
+    }
+
+    async function getConsumerStat(name) {
+        try {
+            const row = await dbConnection('consumer_stat')
+                .where('name', name)
+                .select('*')
+                .first();
+
+            return row;
+        } catch (error) {
+            console.error(error);
+            return {};
+        }
     }
 }
