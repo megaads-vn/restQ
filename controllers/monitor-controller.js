@@ -38,7 +38,7 @@ function MonitorController($event, $config, $queueServer) {
             is_running: $queueServer.isRunning
         });
     }
-    async function summaryMessages(consumer = "", status = "WAITING", days = 7) {
+    async function summaryMessages(consumer = "", status = "WAITING", days = 5) {
         try {
             const rows = await dbConnection('message')
                 .select(dbConnection.raw("DATE_FORMAT(created_at_time, '%Y-%m-%d') as date, count(*) as count"))
@@ -54,12 +54,12 @@ function MonitorController($event, $config, $queueServer) {
         }
     }
 
-    async function summaryRetryFailedMessages(consumer = "", days = 7) {
+    async function summaryRetryFailedMessages(consumer = "", days = 5) {
+        const maxRetryCount = $config.get("consumers.max_retry_count", 2);
         try {
             const rows = await dbConnection('message')
                 .select(dbConnection.raw("DATE_FORMAT(created_at_time, '%Y-%m-%d') as date, count(*) as count"))
-                .where('status', 'FAILED')
-                .andWhere('retry_count', '>', 0)
+                .andWhere('retry_count', '>=', maxRetryCount)
                 .andWhere('last_consumer', consumer)
                 .andWhere('created_at_time', '>=', moment().subtract(days, 'days').format('YYYY-MM-DD 00:00:00'))
                 .groupByRaw("DATE_FORMAT(created_at_time, '%Y-%m-%d')");

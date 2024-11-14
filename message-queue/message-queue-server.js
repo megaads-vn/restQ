@@ -32,7 +32,7 @@ class MQServer {
             // message::publish        
             // this.$event.listen('message::push', this.onNewMessage);
             // consumer
-            this.$event.listen('consumer::done', this.onConsumerDone);
+            this.$event.listen('consumer::released', this.onConsumerReleased);
             this.isRunning = true;
             this.$logger.debug('MQServer is started successfully.');
             return true;
@@ -49,7 +49,7 @@ class MQServer {
             // message::publish
             this.$event.unlisten('message::push', this.onNewMessage);
             // consumer
-            this.$event.unlisten('consumer::done', this.onConsumerDone);
+            this.$event.unlisten('consumer::released', this.onConsumerReleased);
             this.isRunning = false;
             this.$logger.debug('MQServer is paused successfully.');
             return true;
@@ -111,28 +111,27 @@ class MQServer {
     }
 
     async onConsumerResponse(eventType, data) {
-        let self = mqServerInstance;
-        let statAvgProcessingTime = config.get("consumers.statAvgProcessingTime", false);
-        if (statAvgProcessingTime === true) {
-            await self.$consumerStatManager.calculateAvgTime(data.message);
-        }
+        let self = mqServerInstance;        
         if (data.status == 'successful'
             && config.get("consumers.removeMessageAfterProcessing", false)) {            
             await self.$messageManager.removeMessage(data.message);
         } else {
             await self.$messageManager.update(data.message);
         }
-        self.$event.fire('consumer::done', data.consumer);
-        if (data.status == 'successful') {
+        self.$event.fire('consumer::released', data.consumer);
+        if (data.status === 'successful') {
+            if (config.get("consumers.statAvgProcessingTime", false) === true) {
+                await self.$consumerStatManager.calculateAvgTime(data.message);
+            }
             self.respond(data);
-        } else if (data.status == 'error') {
+        } else if (data.status === 'error') {
             if (data.errorCode === 'ECONNABORTED' || (data.errorCode !== 'ECONNABORTED' && data.message.retry_count >= self.consumerMaxRetryCount)) {
                 self.respond(data);
             }
         }
     }
 
-    onConsumerDone(eventType, consumer) {
+    onConsumerReleased(eventType, consumer) {
         let self = mqServerInstance;
         self.$messageManager.getMessageBy({ "last_consumer": consumer.name, "delay_to": Date.now() }, (consumer.qos - consumer.processing_request_count), function (messages) {
             for (let index = 0; index < messages.length; index++) {
