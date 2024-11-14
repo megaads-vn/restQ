@@ -3,7 +3,7 @@ const axios = require('axios');
 var mqServerInstance = null;
 var config = null;
 class MQServer {
-    constructor($event, $config, $producerManager, $messageManager, $consumerManager, $logger) {
+    constructor($event, $config, $producerManager, $messageManager, $consumerManager, $logger, $consumerStatManager) {
         config = $config;
         this.isRunning = false;
         this.$event = $event;
@@ -11,6 +11,7 @@ class MQServer {
         this.$producerManager = $producerManager;
         this.$messageManager = $messageManager;
         this.$consumerManager = $consumerManager;
+        this.$consumerStatManager = $consumerStatManager;
         this.$logger = $logger;
         mqServerInstance = this;
         this.interval = null;
@@ -113,6 +114,7 @@ class MQServer {
         let self = mqServerInstance;
         if (data.status == 'successful'
             && config.get("consumers.removeMessageAfterProcessing", false)) {
+            await self.$consumerStatManager.calculateAvgTime(data.message);
             await self.$messageManager.removeMessage(data.message);
         } else {
             await self.$messageManager.update(data.message);
