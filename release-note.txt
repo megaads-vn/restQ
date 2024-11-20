@@ -1,0 +1,5 @@
+=============== 20Nov2024 ===============
+Message Consumer: Only set the message status to "fail" if it is not a callback message.
+Server Restarting:
+- For callback messages: Change the message status to "waiting".
+- For non-callback messages: Change the message status to "fail".

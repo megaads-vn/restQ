@@ -166,16 +166,25 @@ class MessageManager {
     }
 
     async updateProcessingMessageAfterServerRestart(serverStartAt) {
-        knex('message')
+        try {
+            await knex('message')
+            .where('status', 'PROCESSING')
+            .where('is_callback', '1')
+            .whereNotNull('postback_url')
+            .where('last_processing_at', '<', serverStartAt)
+            .update({
+                status: 'WAITING'
+            });
+
+            await knex('message')
             .where('status', 'PROCESSING')
             .where('last_processing_at', '<', serverStartAt)
             .update({
                 status: 'FAILED'
-            })
-            .then()
-            .catch(function (error) {
-                console.log('updateProcessingMessageAfterServerRestart::error: ' + error.message);
             });
+        } catch (error) {
+            console.log('updateProcessingMessageAfterServerRestart::error: ' + error.message);
+        }
     }
 }
 

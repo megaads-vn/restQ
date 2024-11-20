@@ -59,7 +59,7 @@ class Consumer extends ConsumerInterface {
                     });
                 }).catch(function (error) {
                     self.$logger.error('Consume Function: ' + error.message, requestConfig);
-                    if (error.code === 'ECONNABORTED') {
+                    if (error.code === 'ECONNABORTED' && (message.is_callback == 0 || message.postback_url == null)) {
                         message.status = 'FAILED';
                     } else {
                         message.status = 'WAITING';
