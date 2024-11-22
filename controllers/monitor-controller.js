@@ -55,7 +55,7 @@ function MonitorController($event, $config, $queueServer) {
     }
 
     async function summaryRetryFailedMessages(consumer = "", days = 5) {
-        const maxRetryCount = $config.get("consumers.max_retry_count", 2);
+        const maxRetryCount = $config.get("consumers.maxRetryCount", 2);
         try {
             const rows = await dbConnection('message')
                 .select(dbConnection.raw("DATE_FORMAT(created_at_time, '%Y-%m-%d') as date, count(*) as count"))
