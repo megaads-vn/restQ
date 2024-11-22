@@ -10,18 +10,22 @@ function SettingController($event, $config, $queueServer) {
     };
 
     this.saveConsumers = async function (io) {
-        let result = await saveConsumersConfig(io.inputs.consumers);
+        let result = await saveConsumersConfig(io.inputs.consumers, io.inputs["hard-restart"]);
         io.json({
             status: result ? "successful" : "failed",
         });
     };
 
-    async function saveConsumersConfig(consumers) {
+    async function saveConsumersConfig(consumers = {}, hardRestart = false) {
         var retval = false;
         let configPath = __dir + '/config/consumers.js';
         try {
             await fs.writeFile(configPath, "module.exports = " + JSON.stringify(consumers, null, 4), 'utf8');
-            $queueServer.reload();
+            if (hardRestart == false || hardRestart == "false") {
+                $queueServer.reload();
+            } else {
+                $queueServer.hardRestart();
+            }
             retval = true;
         } catch (error) {
             console.error('Error reading or writing file:', error);

@@ -78,6 +78,13 @@ class MQServer {
         });
     }
 
+    hardRestart() {
+        this.pause();        
+        this.start();
+        this.$logger.debug('MQServer is hard restarted successfully.');
+        return true;
+    }
+
     async publish(io) {
         let self = this;
         let messageObject = Message.buildMessageFromIO(io);
