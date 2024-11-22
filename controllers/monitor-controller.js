@@ -112,7 +112,7 @@ function MonitorController($event, $config, $queueServer) {
             const failed = failedSummary.find(row => row.date === date);
             failedSummaryByDate.data.push(failed ? failed.count : 0);                
             const retryFailed = retryFailedSummary.find(row => row.date === date);
-            retryFailedSummaryByDate.data.push(retryFailed ? failed.count : 0);             
+            retryFailedSummaryByDate.data.push(retryFailed ? retryFailed.count : 0);             
         });
         consumerSummaryData.data.push(waitingSummaryByDate);
         consumerSummaryData.data.push(processingSummaryByDate);
