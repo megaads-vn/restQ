@@ -17,6 +17,8 @@ module.exports = {
 
     ignoreDuplicatedMessages: false,
 
+    waitPostbackCompleted: false,
+
     // setting consumers
     consumers: [
         {

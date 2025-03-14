@@ -125,16 +125,30 @@ class MQServer {
         } else {
             await self.$messageManager.update(data.message);
         }
-        self.$event.fire('consumer::released', data.consumer);
+        const waitPostbackCompleted = config.get("consumers.waitPostbackCompleted", false);        
+        if (!waitPostbackCompleted) {
+            self.$event.fire('consumer::released', data.consumer);
+        }        
         if (data.status === 'successful') {
             if (config.get("consumers.statAvgProcessingTime", false) === true) {
-                await self.$consumerStatManager.calculateAvgTime(data.message);
+            await self.$consumerStatManager.calculateAvgTime(data.message);
             }
-            self.respond(data);
-        } else if (data.status === 'error') {
-            if (data.errorCode === 'ECONNABORTED' || (data.errorCode !== 'ECONNABORTED' && data.message.retry_count >= self.consumerMaxRetryCount)) {
+            if (waitPostbackCompleted) {                
+                await self.respond(data);
+            } else {
                 self.respond(data);
             }
+        } else if (data.status === 'error') {
+            if (data.errorCode === 'ECONNABORTED' || (data.errorCode !== 'ECONNABORTED' && data.message.retry_count >= self.consumerMaxRetryCount)) {
+                if (waitPostbackCompleted) {                
+                    await self.respond(data);
+                } else {
+                    self.respond(data);
+                }
+            }
+        }
+        if (waitPostbackCompleted) {
+            self.$event.fire('consumer::released', data.consumer);
         }
     }
 
@@ -247,7 +261,7 @@ class MQServer {
         consumer.consume(message, consumer.requestTimeout, io);
     }
 
-    respond(responseData) {
+    async respond(responseData) {
         let self = this;
         // default responseData.message.is_callback is 1
         if (typeof responseData.message.is_callback === 'undefined' || responseData.message.is_callback) {
@@ -261,24 +275,24 @@ class MQServer {
                         || consumer.postback_include_request_data === 1)) {
                     postBackRequestData = responseData.message.data;
                 }
-                axios({
-                    method: 'POST',
-                    url: responseData.message.postback_url,
-                    data: {
-                        request: postBackRequestData,
-                        result: responseData.response.data
-                    }
-                })
-                .then()
-                .catch(function (error) {
+                try {
+                    await axios({
+                        method: 'POST',
+                        url: responseData.message.postback_url,
+                        data: {
+                            request: postBackRequestData,
+                            result: responseData.response.data
+                        }
+                    });
+                } catch (error) {
                     self.$logger.warning('Postback::error: ' + responseData.message.code + " - " + error.message);
-                });
+                }
             } else {
                 // respond to producer
                 let producer = self.$producerManager.getProducer(responseData.message.code);
                 if (producer) {
                     try {
-                        producer.io.status(responseData.response.status).json(responseData.response.data);
+                        await producer.io.status(responseData.response.status).json(responseData.response.data);
                     } catch (error) {
                         self.$logger.warning('Response::error: ' + error.message);
                     }
