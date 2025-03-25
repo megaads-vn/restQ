@@ -9,6 +9,10 @@ var lock = new (require('async-lock'))({
 const PQueue = require('p-queue').default;
 const queue = new PQueue({ concurrency: 10 });
 
+const ConsumerQueueManager = require('./consumer-queue-manager');
+const consumerQueueManager = new ConsumerQueueManager();
+
+
 class MessageManager {
     constructor() {
         this.retryTime = config.get('consumers.retryTime', 5);
@@ -32,6 +36,7 @@ class MessageManager {
             ]);
             console.log("removeMessages", result);
         }, 1 * 60 * 60 * 1000);
+        consumerQueueManager.init();
     }
 
 
@@ -51,10 +56,16 @@ class MessageManager {
                         }
                     }
                 }
-                return await trx('message').insert(message.serialize());
+                //@todo add to priority queue
+                const item = await trx('message').insert(message.serialize())
+                if (message.status !== 'DUPLICATED') {
+                    this.pushToConsumerQueue(item[0], message);
+                }
+                
             });
         });
     }
+
 
     async getMessageBy(messageCondition = null, limit = 1, callbackFn = null) {
         var self = this;
@@ -83,6 +94,37 @@ class MessageManager {
             }, function () { });
         }
     }
+
+    async getMessageByQueue(consumer, limit = 1, callbackFn = null) {
+        var self = this;
+        if (limit <= 0) {
+            callbackFn([]);
+        } else {
+            let retVal = [];
+            let messages = consumerQueueManager.getMessages(consumer, limit);
+            for (let index = 0; index < messages.length; index++) {
+                const message = messages[index];
+                let messageRecord = await knex('message')
+                .where('id', message.id)
+                .where('status', 'WAITING')
+                .where('retry_count', '<', self.maxRetryCount)
+                .first();
+                if (messageRecord) {
+                    messageRecord.status = 'PROCESSING';
+                    let now = Date.now();
+                    if (!messageRecord.first_processing_at) {
+                        messageRecord.first_processing_at = now;
+                    }
+                    messageRecord.last_processing_at = now;
+                    let messageObj = Message.buildMessageFromDatabaseRecord(messageRecord);
+                    await self.update(messageObj);
+                    retVal.push(messageObj);
+                }
+              
+            }
+            callbackFn(retVal);
+        }
+    }
     /**
      * Remove messages by conditions
      * @param [{key, operator, value}] conditions
@@ -99,11 +141,12 @@ class MessageManager {
 
     buildQueryByCondition(query, messageCondition) {
         let retVal = query;
-
         let self = this;
         if (messageCondition) {
             if (messageCondition.code) {
                 retVal = retVal.where('code', messageCondition.code).where('status', 'WAITING');
+            } else if (messageCondition.id){
+                retVal = retVal.where('id', messageCondition.id).where('status', 'WAITING');
             } else if (messageCondition.paths) {
                 retVal = retVal.where('status', 'WAITING')
                     .where('retry_count', '>=', 0)
@@ -185,6 +228,15 @@ class MessageManager {
         } catch (error) {
             console.log('updateProcessingMessageAfterServerRestart::error: ' + error.message);
         }
+    }
+
+    async pushToConsumerQueue(id, message) {
+        consumerQueueManager.setMessage(message.last_consumer, {
+            id: id,
+            delay_to: message.delay_to,
+            last_consumer: message.last_consumer,
+            retry_count: message.retry_count
+        });
     }
 }
 

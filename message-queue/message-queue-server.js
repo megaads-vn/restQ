@@ -123,6 +123,10 @@ class MQServer {
             && config.get("consumers.removeMessageAfterProcessing", false)) {            
             await self.$messageManager.removeMessage(data.message);
         } else {
+            //@todo
+            if (data.message.retry_count < self.consumerMaxRetryCount && data.message.status !== 'FAILED') {
+                await self.$messageManager.pushToConsumerQueue(data.message.id, data.message);
+            }
             await self.$messageManager.update(data.message);
         }
         const waitPostbackCompleted = config.get("consumers.waitPostbackCompleted", false);        
@@ -154,7 +158,7 @@ class MQServer {
 
     onConsumerReleased(eventType, consumer) {
         let self = mqServerInstance;
-        self.$messageManager.getMessageBy({ "last_consumer": consumer.name, "delay_to": Date.now() }, (consumer.qos - consumer.processing_request_count), function (messages) {
+        self.$messageManager.getMessageByQueue(consumer.name, (consumer.qos - consumer.processing_request_count), function (messages) {
             for (let index = 0; index < messages.length; index++) {
                 let msg = messages[index];
                 let consumer = self.$consumerManager.getConsumer(msg);
@@ -168,6 +172,8 @@ class MQServer {
                     }
                     msg.status = 'WAITING';
                     self.$messageManager.update(msg);
+                    self.$messageManager.pushToConsumerQueue(msg.id, msg);
+
                 }
             }
         });
@@ -189,6 +195,7 @@ class MQServer {
                     }
                     msg.status = 'WAITING';
                     self.$messageManager.update(msg);
+                    self.$messageManager.pushToConsumerQueue(msg.id, msg);
                 }
             }
         });
@@ -200,7 +207,7 @@ class MQServer {
         if (idleConsumers && idleConsumers.length > 0) {
             self.shuffleArray(idleConsumers);
             idleConsumers.forEach(consumer => {
-                self.$messageManager.getMessageBy({ last_consumer: consumer.name, "delay_to": Date.now() }, (consumer.qos - consumer.processing_request_count), function (messages) {
+                self.$messageManager.getMessageByQueue(consumer.name, (consumer.qos - consumer.processing_request_count), function (messages) {
                     if (messages.length > 0) {
                         self.$logger.debug("Idle consumer", consumer.name);
                         self.$logger.debug("-> Feeding '" + consumer.name + "' " + messages.length + " message(s).");
@@ -217,6 +224,7 @@ class MQServer {
                                 }
                                 msg.status = 'WAITING';
                                 self.$messageManager.update(msg);
+                                self.$messageManager.pushToConsumerQueue(msg.id, msg);
                             }
                         }
                     }

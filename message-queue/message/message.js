@@ -53,6 +53,7 @@ class Message {
 
     static buildMessageFromDatabaseRecord(data) {
         let retVal = new Message();
+        retVal.id = data.id ?? retVal.id;
         retVal.code = data.code ?? retVal.code;
         retVal.data = data.data ? JSON.parse(data.data) : retVal.data;
         retVal.hash = data.hash;
