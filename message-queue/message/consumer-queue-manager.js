@@ -54,6 +54,7 @@ class ConsumerQueueManager {
             return [];
         }
         const messages = [];
+        console.log('getMessages', consumer, this.queues[consumer].size());
         for (let i = 0; i < limit; i++) {
             const message = this.queues[consumer].dequeue();
             if (message && message.id) {
@@ -123,6 +124,7 @@ class ConsumerQueueManager {
                 });
             }
         }
+        console.log('done load queues', minId, maxId);
     }
 }
 
