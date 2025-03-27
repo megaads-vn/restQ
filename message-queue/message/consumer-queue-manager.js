@@ -15,13 +15,19 @@ class ConsumerQueueManager {
 
     setQueue(consumer) {
         this.queues[consumer] = new PriorityQueue((a, b) => {
+            if (a.delay_to < b.delay_to) {
+                return -1; // delay_to nhỏ hơn sẽ được ưu tiên lên trước
+            }
             if (a.delay_to > b.delay_to) {
-                return -1;
+                return 1; // delay_to lớn hơn sẽ được sắp xếp sau
+            }
+            if (a.priority > b.priority) {
+                return -1; // priority lớn hơn sẽ được ưu tiên lên trước
             }
             if (a.priority < b.priority) {
-                return 1;
+                return 1; // priority nhỏ hơn sẽ được sắp xếp sau
             }
-            return a.id < b.id ? 1 : -1;
+            return a.id < b.id ? -1 : 1; // id nhỏ hơn sẽ được ưu tiên lên trước
         });
     }
 
