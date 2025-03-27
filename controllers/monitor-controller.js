@@ -175,7 +175,27 @@ function MonitorController($event, $config, $queueServer) {
         }
     }
 
+    const cache = {
+        data: null,
+        timestamp: 0,
+        CACHE_DURATION: 15 * 60 * 1000  // 10 phút tính bằng milliseconds
+    };
+    
+    // Hàm kiểm tra cache còn hạn không
+    function isCacheValid() {
+        return cache.data && (Date.now() - cache.timestamp < cache.CACHE_DURATION);
+    }
+    function setCache(data) {
+        cache.data = data;
+        cache.timestamp = Date.now();
+    }
+
     this.getConsumerData = async function (io) {
+        if (isCacheValid() && io.inputs.clear_cache !== 1) {
+            cache.data.from_cache = 1;
+            io.json(cache.data);
+            return;
+        }
         var name = io.inputs.name;
         var summaryDays = 7;
         let summaryDateLabels = [];
@@ -223,15 +243,19 @@ function MonitorController($event, $config, $queueServer) {
         consumerSummaryData.data.push(retryFailedSummaryByDate);
 
         const consumerStat = await getConsumerStat(name);
-
-        io.json({
+        const response = {
             status: 'successful',
             result: {
                 consumerSummaryData,
                 consumerStat
             }
-        });
+        }
+
+        setCache(response);
+        io.json(response);
     }
+
+    
 
     async function getConsumerStat(name) {
         try {
