@@ -54,6 +54,73 @@ function MonitorController($event, $config, $queueServer) {
         }
     }
 
+    async function getMinMaxIds(fromDate) {
+        // 1. Lấy id nhỏ nhất theo created_at_time
+        const [minResult] = await dbConnection('message')
+            .select('id')
+            .where('created_at_time', '>=', fromDate)
+            .orderBy('created_at_time', 'asc')
+            .limit(1);
+    
+        // 2. Lấy id lớn nhất
+        const [maxResult] = await dbConnection('message')
+            .select('id')
+            .orderBy('id', 'desc')
+            .limit(1);
+
+        if (!minResult || !maxResult) {
+            return { minId: 0, maxId: 0 };
+        }
+    
+        return {
+            minId: minResult.id,
+            maxId: maxResult.id
+        };
+    }
+
+    async function summaryMessagesNew(consumer = "", days = 5) {
+        try {
+            const { minId, maxId } = await getMinMaxIds(moment().subtract(days, 'days').format('YYYY-MM-DD 00:00:00'));
+          
+            if (minId === 0 || maxId === 0) {
+                return {};
+            }
+
+            const result = {};
+            let interval = 2000;
+            for (let currentId = minId; currentId <= maxId; currentId += interval) {
+                const endId = Math.min(currentId + interval - 1, maxId);
+                const rows = await dbConnection('message')
+                            .select(dbConnection.raw("DATE_FORMAT(created_at_time, '%Y-%m-%d') as date, count(*) as count, status"))
+                            .whereIn('status', ['WAITING', 'PROCESSING', 'FAILED'])
+                            .andWhere('last_consumer', consumer)
+                            .andWhere('id', '>=', currentId)
+                            .andWhere('id', '<=', endId)
+                            .groupBy('status')
+                            .groupByRaw("DATE_FORMAT(created_at_time, '%Y-%m-%d')");    
+                rows.forEach(msg => {
+                    const date = msg.date;
+                    if (!result[msg.status]) {
+                        result[msg.status] = {};
+                    }
+                    if (!result[msg.status][date]) {
+                        result[msg.status][date] = {
+                            count: 0,
+                            date: date
+                        };
+                    }
+                    result[msg.status][date].count += Number(msg.count);
+                  
+                });
+            }
+
+            return result;
+        } catch (error) {
+            console.error('Error in summaryMessagesNew:', error);
+            throw error;
+        }
+    }
+
     async function summaryRetryFailedMessages(consumer = "", days = 5) {
         const maxRetryCount = $config.get("consumers.maxRetryCount", 2);
         try {
@@ -71,6 +138,43 @@ function MonitorController($event, $config, $queueServer) {
         }
     }
 
+    async function summaryRetryFailedMessagesNew(consumer = "", days = 5) {
+        const maxRetryCount = $config.get("consumers.maxRetryCount", 2);
+        try {
+            const { minId, maxId } = await getMinMaxIds(moment().subtract(days, 'days').format('YYYY-MM-DD 00:00:00'));
+            if (minId === 0 || maxId === 0) {
+                return {};
+            }
+            let interval = 2000;
+            const result = {};
+            for (let currentId = minId; currentId <= maxId; currentId += interval) {
+                const endId = Math.min(currentId + interval - 1, maxId);
+                const rows = await dbConnection('message')
+                            .select(dbConnection.raw("DATE_FORMAT(created_at_time, '%Y-%m-%d') as date, count(*) as count"))
+                            .andWhere('retry_count', '>=', maxRetryCount)
+                            .andWhere('last_consumer', consumer)
+                            .andWhere('id', '>=', currentId)
+                            .andWhere('id', '<=', endId)
+                            .groupByRaw("DATE_FORMAT(created_at_time, '%Y-%m-%d')");
+             
+                rows.forEach(row => {
+                    const date = row.date;
+                    if (!result[date]) {
+                        result[date] = {
+                            count: 0,
+                            date: date  
+                        };
+                    }
+                    result[date].count += Number(row.count);
+                });
+            }
+            return result;
+        } catch (error) {
+            console.error(error);
+            return [];
+        }
+    }
+
     this.getConsumerData = async function (io) {
         var name = io.inputs.name;
         var summaryDays = 7;
@@ -79,15 +183,18 @@ function MonitorController($event, $config, $queueServer) {
             const date = moment().subtract(i, 'days').format('YYYY-MM-DD');
             summaryDateLabels.push(date);
         }
+      
         let consumerSummaryData = {
             name: name,
             labels: summaryDateLabels,
             data: []
         };
-        const waitingSummary = await summaryMessages(name, "WAITING", summaryDays);
-        const processingSummary = await summaryMessages(name, "PROCESSING", summaryDays);
-        const failedSummary = await summaryMessages(name, "FAILED", summaryDays);
-        const retryFailedSummary = await summaryRetryFailedMessages(name, summaryDays);
+        const dataSummary = await summaryMessagesNew(name, summaryDays);
+        const waitingSummary = dataSummary['WAITING'];
+        const processingSummary = dataSummary['PROCESSING'];
+        const failedSummary = dataSummary['FAILED'];
+        const retryFailedSummary = await summaryRetryFailedMessagesNew(name, summaryDays);
+     
         let waitingSummaryByDate = {
             name: "WAITING",
             data: []
@@ -105,14 +212,10 @@ function MonitorController($event, $config, $queueServer) {
             data: []
         };
         summaryDateLabels.forEach(date => {
-            const waiting = waitingSummary.find(row => row.date === date);
-            waitingSummaryByDate.data.push(waiting ? waiting.count : 0);
-            const processing = processingSummary.find(row => row.date === date);
-            processingSummaryByDate.data.push(processing ? processing.count : 0);
-            const failed = failedSummary.find(row => row.date === date);
-            failedSummaryByDate.data.push(failed ? failed.count : 0);                
-            const retryFailed = retryFailedSummary.find(row => row.date === date);
-            retryFailedSummaryByDate.data.push(retryFailed ? retryFailed.count : 0);             
+            waitingSummaryByDate.data.push(waitingSummary && waitingSummary[date] ? waitingSummary[date].count : 0);
+            processingSummaryByDate.data.push(processingSummary && processingSummary[date] ? processingSummary[date].count : 0);
+            failedSummaryByDate.data.push(failedSummary && failedSummary[date] ? failedSummary[date].count : 0);  
+            retryFailedSummaryByDate.data.push(retryFailedSummary && retryFailedSummary[date] ? retryFailedSummary[date].count : 0);             
         });
         consumerSummaryData.data.push(waitingSummaryByDate);
         consumerSummaryData.data.push(processingSummaryByDate);
