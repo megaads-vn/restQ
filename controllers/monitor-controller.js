@@ -191,11 +191,11 @@ function MonitorController($event, $config, $queueServer) {
     }
 
     this.getConsumerData = async function (io) {
-        if (isCacheValid() && io.inputs.clear_cache !== 1) {
-            cache.data.from_cache = 1;
-            io.json(cache.data);
-            return;
-        }
+        // if (isCacheValid() && io.inputs.clear_cache !== 1) {
+        //     cache.data.from_cache = 1;
+        //     io.json(cache.data);
+        //     return;
+        // }
         var name = io.inputs.name;
         var summaryDays = 7;
         let summaryDateLabels = [];
