@@ -1,10 +1,10 @@
 const PriorityQueue = require('@datastructures-js/priority-queue').PriorityQueue;
 const config = require(__dir + "/core/app/config");
-const knex = require('knex')(config.get("database"));
 
 class ConsumerQueueManager {
-    constructor() {
+    constructor(knex) {
         this.queues = {};
+        this.knex = knex;
     }
 
     init() {
@@ -84,10 +84,10 @@ class ConsumerQueueManager {
 
     async loadQueues() {
         // Lấy MinId và MaxId
-        const [minMaxResult] = await knex('message')
+        const [minMaxResult] = await this.knex('message')
             .select(
-                knex.raw('MIN(id) as minId'),
-                knex.raw('MAX(id) as maxId')
+                this.knex.raw('MIN(id) as minId'),
+                this.knex.raw('MAX(id) as maxId')
             );
     
         const { minId, maxId } = minMaxResult;
@@ -97,7 +97,7 @@ class ConsumerQueueManager {
         for (let currentId = minId; currentId <= maxId; currentId += batchSize) {
             const endId = Math.min(currentId + batchSize - 1, maxId);
             
-            const messages = await knex('message')
+            const messages = await this.knex('message')
                 .select('id', 'priority', 'delay_to', 'last_consumer', 'retry_count')
                 .whereBetween('id', [currentId, endId])
                 .where('status', 'WAITING')

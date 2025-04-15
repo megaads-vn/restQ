@@ -10,7 +10,7 @@ const PQueue = require('p-queue').default;
 const queue = new PQueue({ concurrency: 10 });
 
 const ConsumerQueueManager = require('./consumer-queue-manager');
-const consumerQueueManager = new ConsumerQueueManager();
+const consumerQueueManager = new ConsumerQueueManager(knex);
 
 
 class MessageManager {
