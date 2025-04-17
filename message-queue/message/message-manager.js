@@ -36,7 +36,6 @@ class MessageManager {
             ]);
             console.log("removeMessages", result);
         }, 1 * 60 * 60 * 1000);
-        consumerQueueManager.init();
     }
 
 
@@ -237,6 +236,10 @@ class MessageManager {
             last_consumer: message.last_consumer,
             retry_count: message.retry_count
         });
+    }
+
+    loadConsumerQueue(consummers) {
+        consumerQueueManager.init(consummers);
     }
 }
 

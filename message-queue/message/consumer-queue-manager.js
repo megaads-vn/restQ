@@ -1,16 +1,20 @@
 const PriorityQueue = require('@datastructures-js/priority-queue').PriorityQueue;
 const config = require(__dir + "/core/app/config");
-
+const MAX_ITEMS = 12000000;
 class ConsumerQueueManager {
     constructor(knex) {
         this.queues = {};
+        this.consumers = {};
         this.knex = knex;
     }
 
-    init() {
+    init(consumers) {
         this.queues = {};
-        
-        this.loadQueues();
+        this.consumers = {};
+        if (consumers.length > 0) {
+            this.loadConsumers(consumers);
+            this.loadQueues();
+        }
     }
 
     setQueue(consumer) {
@@ -91,12 +95,48 @@ class ConsumerQueueManager {
             );
     
         const { minId, maxId } = minMaxResult;
-        const batchSize = 1000;
-        
+        const batchSize = 2000;
+        for (let currentId = maxId; currentId >= minId; currentId -= batchSize) {
+            const startId = Math.min(currentId - batchSize + 1, maxId);
+            const messages = await this.knex('message')
+                .select('id', 'priority', 'delay_to', 'last_consumer', 'retry_count')
+                .whereBetween('id', [startId, currentId])
+                .where('status', 'WAITING')
+                .where('retry_count', '<', config.get("consumers.maxRetryCount"));
+            this.distributeMessage(messages);
+        }
+
+
+        console.log('done load queues', minId, maxId);
+    }
+
+    distributeMessage(messages) {
+        for (const msg of messages) {
+            const consumer = msg.last_consumer;
+            if (!consumer || !this.hasConsumer(consumer) || this.queues[consumer].size() > MAX_ITEMS) {
+                continue;
+            }
+            // Tạo queue nếu chưa tồn tại
+            if (!this.hasQueue(consumer)) {
+                this.setQueue(consumer);
+            }
+
+            // Thêm message vào queue
+            this.queues[consumer].enqueue({
+                id: msg.id,
+                priority: msg.priority,
+                delay_to: msg.delay_to,
+                last_consumer: msg.last_consumer,
+                retry_count: msg.retry_count
+            });
+        }
+    }
+
+    async batch(minId, maxId) {
         // Xử lý từng batch
         for (let currentId = minId; currentId <= maxId; currentId += batchSize) {
             const endId = Math.min(currentId + batchSize - 1, maxId);
-            
+
             const messages = await this.knex('message')
                 .select('id', 'priority', 'delay_to', 'last_consumer', 'retry_count')
                 .whereBetween('id', [currentId, endId])
@@ -104,27 +144,21 @@ class ConsumerQueueManager {
                 .where('retry_count', '<', config.get("consumers.maxRetryCount"));
 
             // Phân phối messages vào các queue tương ứng
-            for (const msg of messages) {
-                if (!msg.last_consumer) {
-                    continue;   
-                }
-                const consumer = msg.last_consumer;
-                // Tạo queue nếu chưa tồn tại
-                if (!this.hasQueue(consumer)) {
-                    this.setQueue(consumer);
-                }
+            this.distributeMessage(messages);
+        }
+    }
 
-                // Thêm message vào queue
-                this.queues[consumer].enqueue({
-                    id: msg.id,
-                    priority: msg.priority,
-                    delay_to: msg.delay_to,
-                    last_consumer: msg.last_consumer,
-                    retry_count: msg.retry_count
-                });
+
+    loadConsumers(consumers) {
+        for (let consumer of consumers) {
+            if (consumer.qos > 0) {
+                this.consumers[consumer.name] = consumer;
             }
         }
-        console.log('done load queues', minId, maxId);
+    }
+
+    hasConsumer(consumerName) {
+        return consumerName in this.consumers;
     }
 }
 

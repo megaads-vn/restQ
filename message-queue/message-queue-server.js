@@ -24,6 +24,7 @@ class MQServer {
     start() {
         if (!this.isRunning) {
             this.$consumerManager.loadConsumers();
+            this.$messageManager.loadConsumerQueue(this.$consumerManager.getConsummers());
             // interval
             let self = this;
             this.interval = setInterval(function () {

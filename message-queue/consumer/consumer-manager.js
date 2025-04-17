@@ -112,6 +112,10 @@ class ConsumerManager {
         }
         return retVal;
     }
+
+    getConsummers() {
+        return this.consumers;
+    }
 }
 
 
