@@ -137,7 +137,7 @@ class ConsumerQueueManager {
     async batch(minId, maxId) {
         // Xử lý từng batch
         for (let currentId = minId; currentId <= maxId; currentId += batchSize) {
-            const endId = Math.min(currentId + batchSize - 1, maxId);
+            const endId = Math.max(currentId + batchSize - 1, maxId);
 
             const messages = await this.knex('message')
                 .select('id', 'priority', 'delay_to', 'last_consumer', 'retry_count')
