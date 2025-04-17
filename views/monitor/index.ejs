@@ -7,6 +7,7 @@
 <body>
     <script src="https://code.highcharts.com/highcharts.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
     <div style="padding: 20px;background-color: black; margin-bottom: 50px; border-radius: 5px;">        
         <h1 style="color: wheat;">RestQ Monitor</h1>
 
@@ -23,23 +24,24 @@
     <style>
         .chart-container {
             position: relative;
-            width: 100%; /* Adjust as needed */
-            height: 400px; /* Adjust as needed */
+            width: 100%;
+            height: 400px;
             display: flex;
             flex-direction: column;
             justify-content: start;
             align-items: center;
+            margin-bottom: 30px;
         }
 
         .spinner {
-            border: 4px solid #f3f3f3; /* Light grey */
-            border-top: 4px solid #3498db; /* Blue */
+            border: 3px solid #f3f3f3; /* Light grey */
+            border-top: 3px solid #3498db; /* Blue */
             border-radius: 50%;
             width: 30px;
             height: 30px;
             animation: spin 1s linear infinite;
             display: inline-block;
-            margin: 10px;
+            /* margin: 10px; */
         }
     
         @keyframes spin {
@@ -47,8 +49,34 @@
             100% { transform: rotate(360deg); }
         }
 
-        .chart-container {
-            height: 400px;  
+
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .chart-content {
+            width: 100%;
+        }
+
+        .refresh-btn {
+            border-radius: 10px;
+            padding: 10px;
+            background-color: #d9d7d7;
+            color: rgb(133, 126, 126);
+            margin-left: 10px;
+            font-size: 20px;
+            border: none;
+        }        
+        
+        .placeholder-text {
+            font-size: 18px;
+            color: #999;
+            padding: auto;
+            text-align: center;
         }
     </style>
     
@@ -57,77 +85,116 @@
         var authToken = "<%- authToken %>";
 
         function fetchConsumerData() {
-            for (let index = 0; index < summaryData.length; index++) {
-                let consumerData = summaryData[index];
-
+            summaryData.forEach(consumer => {
                 let chartContainer = document.createElement('div');
-                chartContainer.className = 'chart-container'
+                chartContainer.className = 'chart-container';
 
-                let chartTitle = document.createElement('div');
-                chartTitle.innerHTML = `'${consumerData.name}' Consumer Summary`
-                chartTitle.style.fontWeight = 'bold'
-                chartTitle.style.fontSize = '1.2em'
-                chartTitle.style.fontFamily = 'Helvetica, Arial, sans-serif'
-                chartTitle.style.fill = 'rgb(51, 51, 51)'
-                chartTitle.style.color = 'rgb(51, 51, 51)'
-                chartTitle.style.display = 'block'
-                chartTitle.style.paddingTop = '8px'
-                chartContainer.appendChild(chartTitle);
+                // Create header container to hold the title and the button side by side
+                let headerContainer = document.createElement('div');
+                headerContainer.className = 'header-container';
 
-                let consumerSpinner = document.createElement('div');
-                consumerSpinner.className = 'spinner';
-                chartContainer.appendChild(consumerSpinner);
+                // Create button to load consumer data for this chart
+                let loadButton = document.createElement('button');
+                loadButton.classList.add('refresh-btn');
+                loadButton.innerHTML = '<i class="fas fa-sync-alt"></i>';
 
+                // Append button to header container
+                headerContainer.appendChild(loadButton);
+
+                // Append header container to chart container
+                chartContainer.appendChild(headerContainer);
+
+                // Append chart container to document body
                 document.body.appendChild(chartContainer);
 
-                axios.get('/monitor/consumer-data?name=' + consumerData.name + '&token=' + authToken)
-                    .then(response => {
-                        consumerData = response.data.result.consumerSummaryData;
-                        var consumerStat = response.data.result.consumerStat;
-                        consumerSpinner.remove();
+                // Initial placeholder text for no data loaded
+                let placeholderText = document.createElement('div');
+                placeholderText.classList.add('placeholder-text');
+                placeholderText.innerHTML = "Click refresh button to load data for '" + consumer.name + "'";
+                chartContainer.appendChild(placeholderText);
 
-                        let chartConfig = {
-                            chart: {
-                                type: 'column',
-                                options3d: {
-                                    enabled: true,
-                                    alpha: 15,
-                                    beta: 15,
-                                    depth: 50,
-                                    viewDistance: 25
-                                }
-                            },
-                            title: {
-                                text: "'" + consumerData.name + "' Consumer Summary. AVG Time (ms): " + consumerStat?.avg_time
-                            },
-                            xAxis: {
-                                categories: consumerData.labels
-                            },
-                            yAxis: [],
-                            series: []
-                        };
+                // Set up click event for the load button
+                loadButton.addEventListener('click', function() {
+                    // Disable the button immediately to avoid duplicate requests
+                    loadButton.disabled = true;
+                    
+                    // Insert a spinner for visual feedback
+                    let consumerSpinner = document.createElement('div');
+                    consumerSpinner.className = 'spinner';
+                    headerContainer.appendChild(consumerSpinner);
 
-                        for (let i = 0; i < consumerData.data.length; i++) {
-                            let item = consumerData.data[i];
-                            chartConfig.yAxis.push({
-                                title: {
-                                    text: null
+                    axios.get('/monitor/consumer-data?name=' + consumer.name + '&token=' + authToken)
+                        .then(response => {
+                            let consumerDataResp = response.data.result.consumerSummaryData;
+                            let consumerStat = response.data.result.consumerStat;
+
+                            // Remove spinner after data is fetched
+                            consumerSpinner.remove();
+                            // Remove the placeholder text when data is loaded
+                            placeholderText.remove();
+
+                            // Prepare Highcharts configuration
+                            let chartConfig = {
+                                chart: {
+                                    type: 'column',
+                                    options3d: {
+                                        enabled: true,
+                                        alpha: 15,
+                                        beta: 15,
+                                        depth: 50,
+                                        viewDistance: 25
+                                    }
                                 },
-                                labels: {
-                                    enabled: false
-                                }
-                            });
-                            item.yAxis = i;
-                            chartConfig.series.push(item);
-                        }
+                                title: {
+                                    text: "'" + consumerDataResp.name + "' Consumer Summary. AVG Time (ms): " + (consumerStat ? consumerStat.avg_time : '')
+                                },
+                                xAxis: {
+                                    categories: consumerDataResp.labels
+                                },
+                                yAxis: [],
+                                series: []
+                            };
 
-                        Highcharts.chart(chartContainer, chartConfig);
-                    })
-                    .catch(error => {
-                        consumerSpinner.remove();
-                        alert('Failed to load consumer data for ' + consumerData.name + ': ' + error.message);
-                    });
-            }
+                            // For each dataset, configure and assign a separate yAxis
+                            for (let i = 0; i < consumerDataResp.data.length; i++) {
+                                let item = consumerDataResp.data[i];
+                                chartConfig.yAxis.push({
+                                    title: {
+                                        text: null
+                                    },
+                                    labels: {
+                                        enabled: false
+                                    }
+                                });
+                                item.yAxis = i;
+                                chartConfig.series.push(item);
+                            }
+
+                            // If chart already exists, remove it so updated data is rendered
+                            let existingChartDiv = chartContainer.querySelector('.chart-content');
+                            if (existingChartDiv) {
+                                existingChartDiv.remove();
+                            }
+
+                            // Create a container for the chart below the header
+                            let chartDiv = document.createElement('div');
+                            chartDiv.classList.add('chart-content');
+                            chartContainer.appendChild(chartDiv);
+                            
+                            // Render the chart using Highcharts
+                            Highcharts.chart(chartDiv, chartConfig);
+
+                            // Re-enable the button for future reloads
+                            loadButton.disabled = false;
+                        })
+                        .catch(error => {
+                            // Remove spinner and re-enable the button in case of error
+                            consumerSpinner.remove();
+                            alert('Failed to load consumer data for ' + consumer.name + ': ' + error.message);
+                            loadButton.disabled = false;
+                        });
+                });
+            });
         }
 
         fetchConsumerData();
