@@ -97,7 +97,7 @@ class ConsumerQueueManager {
         const { minId, maxId } = minMaxResult;
         const batchSize = 2000;
         for (let currentId = maxId; currentId >= minId; currentId -= batchSize) {
-            const startId = Math.min(currentId - batchSize + 1, maxId);
+            const startId = Math.min(currentId - batchSize + 1, minId);
             const messages = await this.knex('message')
                 .select('id', 'priority', 'delay_to', 'last_consumer', 'retry_count')
                 .whereBetween('id', [startId, currentId])
@@ -113,7 +113,9 @@ class ConsumerQueueManager {
     distributeMessage(messages) {
         for (const msg of messages) {
             const consumer = msg.last_consumer;
-            if (!consumer || !this.hasConsumer(consumer) || this.queues[consumer].size() > MAX_ITEMS) {
+            if (!consumer
+                || !this.hasConsumer(consumer)
+                || (this.queues[consumer] && this.queues[consumer].size() > MAX_ITEMS)) {
                 continue;
             }
             // Tạo queue nếu chưa tồn tại
