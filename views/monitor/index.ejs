@@ -31,6 +31,7 @@
             justify-content: start;
             align-items: center;
             margin-bottom: 30px;
+            border-bottom-style: groove;
         }
 
         .spinner {
@@ -52,7 +53,7 @@
 
         .header-container {
             display: flex;
-            justify-content: space-between;
+            justify-content: end;
             align-items: center;
             width: 100%;
             margin-bottom: 10px;
@@ -68,15 +69,25 @@
             background-color: #d9d7d7;
             color: rgb(133, 126, 126);
             margin-left: 10px;
-            font-size: 20px;
+            font-size: 15px;
             border: none;
         }        
         
         .placeholder-text {
+            margin-top: 100px;
             font-size: 18px;
             color: #999;
+            /* padding: auto; */
+            text-align: center;
+        }
+        
+        .consumer-name {
+            margin-left: 10px;
+            font-size: 15px;
             padding: auto;
             text-align: center;
+            font-family: sans-serif;
+            font-weight: bold;
         }
     </style>
     
@@ -96,7 +107,7 @@
                 // Create button to load consumer data for this chart
                 let loadButton = document.createElement('button');
                 loadButton.classList.add('refresh-btn');
-                loadButton.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                loadButton.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
 
                 // Append button to header container
                 headerContainer.appendChild(loadButton);
@@ -106,6 +117,11 @@
 
                 // Append chart container to document body
                 document.body.appendChild(chartContainer);
+                
+                let consumerNameElement = document.createElement('div');
+                consumerNameElement.classList.add('consumer-name');
+                consumerNameElement.innerHTML = consumer.name;
+                chartContainer.appendChild(consumerNameElement);
 
                 // Initial placeholder text for no data loaded
                 let placeholderText = document.createElement('div');
@@ -132,6 +148,7 @@
                             consumerSpinner.remove();
                             // Remove the placeholder text when data is loaded
                             placeholderText.remove();
+                            consumerNameElement.remove();
 
                             // Prepare Highcharts configuration
                             let chartConfig = {
