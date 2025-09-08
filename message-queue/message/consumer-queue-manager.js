@@ -95,7 +95,7 @@ class ConsumerQueueManager {
             );
     
         const { minId, maxId } = minMaxResult;
-        const batchSize = 2000;
+        const batchSize = 20000;
         for (let currentId = maxId; currentId >= minId; currentId -= batchSize) {
             const startId = currentId - batchSize + 1;
             const messages = await this.knex('message')
@@ -103,7 +103,10 @@ class ConsumerQueueManager {
                 .whereBetween('id', [startId, currentId])
                 .where('status', 'WAITING')
                 .where('retry_count', '<', config.get("consumers.maxRetryCount"));
-            this.distributeMessage(messages);
+            if (messages.length > 0) {
+                this.distributeMessage(messages);
+            }
+
         }
 
 
