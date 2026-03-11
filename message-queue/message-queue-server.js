@@ -285,14 +285,18 @@ class MQServer {
                     postBackRequestData = responseData.message.data;
                 }
                 try {
-                    await axios({
+                    let postbackData = {
+                        request: postBackRequestData,
+                        result: responseData.response.data
+                    };
+
+                    console.log(`Postback request to: ${responseData.message.postback_url}`, postbackData);
+                    let postbackResponse = await axios({
                         method: 'POST',
                         url: responseData.message.postback_url,
-                        data: {
-                            request: postBackRequestData,
-                            result: responseData.response.data
-                        }
+                        data: postbackData
                     });
+                    console.log(`Postback response from: ${responseData.message.postback_url}`, postbackResponse.data);
                 } catch (error) {
                     self.$logger.warning('Postback::error: ' + responseData.message.code + " - " + error.message);
                 }
