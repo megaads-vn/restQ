@@ -6,7 +6,7 @@ class ConsumerQueueManager {
         this.queues = {};
         this.consumers = {};
         this.knex = knex;
-        this.maxItems = config.get("consumers.maxQueueSize", 50000);
+        this.maxItems = config.get("consumers.maxQueueSize", 12000000);
     }
 
     init(consumers) {

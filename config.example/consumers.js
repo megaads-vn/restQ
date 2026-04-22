@@ -21,11 +21,11 @@ module.exports = {
 
     // "maxQueueSize": maximum messages held in memory per consumer queue
     // Lower this value to reduce memory usage (default: 50000)
-    maxQueueSize: 50000,
+    maxQueueSize: 12000000,
 
     // "maxLockPending": maximum pending async-lock operations before rejecting
-    // Prevents unbounded memory growth under high load (default: 10000)
-    maxLockPending: 10000,
+    // Prevents unbounded memory growth under high load (default: 1000000)
+    maxLockPending: 1000000,
 
     // setting consumers
     consumers: [
