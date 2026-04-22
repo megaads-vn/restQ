@@ -2,6 +2,7 @@ module.exports = {
     port: 2307,
     debug: true,
     requestTimeout: -1,
+    timezone: '+07:00',
     autoload: [
         "/controllers",
         "/entities",

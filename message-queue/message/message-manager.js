@@ -2,7 +2,7 @@ const config = require(__dir + "/core/app/config");
 const knex = require('knex')(config.get("database"));
 const Message = require("./message");
 var lock = new (require('async-lock'))({
-    maxPending: 1000000,
+    maxPending: config.get('consumers.maxLockPending', 10000),
     maxExecutionTime: 3000,
     maxOccupationTime: 10000
 });

@@ -1,11 +1,12 @@
 const PriorityQueue = require('@datastructures-js/priority-queue').PriorityQueue;
 const config = require(__dir + "/core/app/config");
-const MAX_ITEMS = 12000000;
+
 class ConsumerQueueManager {
     constructor(knex) {
         this.queues = {};
         this.consumers = {};
         this.knex = knex;
+        this.maxItems = config.get("consumers.maxQueueSize", 50000);
     }
 
     init(consumers) {
@@ -20,18 +21,18 @@ class ConsumerQueueManager {
     setQueue(consumer) {
         this.queues[consumer] = new PriorityQueue((a, b) => {
             if (a.delay_to < b.delay_to) {
-                return -1; // delay_to nhỏ hơn sẽ được ưu tiên lên trước
+                return -1;
             }
             if (a.delay_to > b.delay_to) {
-                return 1; // delay_to lớn hơn sẽ được sắp xếp sau
+                return 1;
             }
             if (a.priority > b.priority) {
-                return -1; // priority lớn hơn sẽ được ưu tiên lên trước
+                return -1;
             }
             if (a.priority < b.priority) {
-                return 1; // priority nhỏ hơn sẽ được sắp xếp sau
+                return 1;
             }
-            return a.id < b.id ? -1 : 1; // id nhỏ hơn sẽ được ưu tiên lên trước
+            return a.id < b.id ? -1 : 1;
         });
     }
 
@@ -42,6 +43,9 @@ class ConsumerQueueManager {
     setMessage(consumer, message) {
         if (!this.hasQueue(consumer)) {
             this.setQueue(consumer);
+        }
+        if (this.queues[consumer].size() >= this.maxItems) {
+            return false;
         }
         return this.queues[consumer].enqueue(message);
     }
@@ -58,12 +62,11 @@ class ConsumerQueueManager {
             return [];
         }
         const messages = [];
-        console.log('getMessages', consumer, this.queues[consumer].size());
         for (let i = 0; i < limit; i++) {
             const message = this.queues[consumer].dequeue();
             if (message && message.id) {
                 if (message.delay_to > Date.now()) {
-                    this.setMessage(consumer, message);
+                    this.queues[consumer].enqueue(message);
                 } else {
                     messages.push(message);
                 }
@@ -72,6 +75,22 @@ class ConsumerQueueManager {
             }
         }
         return messages;
+    }
+
+    getTotalQueueSize() {
+        let total = 0;
+        for (const consumer in this.queues) {
+            total += this.queues[consumer].size();
+        }
+        return total;
+    }
+
+    isAllQueuesFull() {
+        const consumerNames = Object.keys(this.consumers);
+        if (consumerNames.length === 0) return false;
+        return consumerNames.every(name => {
+            return this.hasQueue(name) && this.queues[name].size() >= this.maxItems;
+        });
     }
 
     hasQueue(consumer) {
@@ -87,16 +106,25 @@ class ConsumerQueueManager {
     }
 
     async loadQueues() {
-        // Lấy MinId và MaxId
         const [minMaxResult] = await this.knex('message')
             .select(
                 this.knex.raw('MIN(id) as minId'),
                 this.knex.raw('MAX(id) as maxId')
-            );
-    
+            )
+            .where('status', 'WAITING');
+
         const { minId, maxId } = minMaxResult;
-        const batchSize = 20000;
+        if (!minId || !maxId) {
+            console.log('done load queues: no waiting messages');
+            return;
+        }
+
+        const batchSize = 5000;
         for (let currentId = maxId; currentId >= minId; currentId -= batchSize) {
+            if (this.isAllQueuesFull()) {
+                console.log('done load queues: all queues full at', currentId, '/', minId);
+                break;
+            }
             const startId = currentId - batchSize + 1;
             const messages = await this.knex('message')
                 .select('id', 'priority', 'delay_to', 'last_consumer', 'retry_count')
@@ -106,27 +134,24 @@ class ConsumerQueueManager {
             if (messages.length > 0) {
                 this.distributeMessage(messages);
             }
-
         }
 
-
-        console.log('done load queues', minId, maxId);
+        const totalSize = this.getTotalQueueSize();
+        console.log('done load queues', minId, maxId, '| total items:', totalSize);
     }
 
     distributeMessage(messages) {
         for (const msg of messages) {
             const consumer = msg.last_consumer;
-            if (!consumer
-                || !this.hasConsumer(consumer)
-                || (this.queues[consumer] && this.queues[consumer].size() > MAX_ITEMS)) {
+            if (!consumer || !this.hasConsumer(consumer)) {
                 continue;
             }
-            // Tạo queue nếu chưa tồn tại
             if (!this.hasQueue(consumer)) {
                 this.setQueue(consumer);
             }
-
-            // Thêm message vào queue
+            if (this.queues[consumer].size() >= this.maxItems) {
+                continue;
+            }
             this.queues[consumer].enqueue({
                 id: msg.id,
                 priority: msg.priority,
@@ -136,23 +161,6 @@ class ConsumerQueueManager {
             });
         }
     }
-
-    async batch(minId, maxId) {
-        // Xử lý từng batch
-        for (let currentId = minId; currentId <= maxId; currentId += batchSize) {
-            const endId = Math.min(currentId + batchSize - 1, maxId);
-
-            const messages = await this.knex('message')
-                .select('id', 'priority', 'delay_to', 'last_consumer', 'retry_count')
-                .whereBetween('id', [currentId, endId])
-                .where('status', 'WAITING')
-                .where('retry_count', '<', config.get("consumers.maxRetryCount"));
-
-            // Phân phối messages vào các queue tương ứng
-            this.distributeMessage(messages);
-        }
-    }
-
 
     loadConsumers(consumers) {
         for (let consumer of consumers) {
@@ -167,4 +175,4 @@ class ConsumerQueueManager {
     }
 }
 
-module.exports =  ConsumerQueueManager;
+module.exports = ConsumerQueueManager;
