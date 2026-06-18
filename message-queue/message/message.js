@@ -117,9 +117,7 @@ class Message {
 
     static generateHash(mesage) {
         if ((mesage.hash == null || mesage.hash == '') && mesage.data != null) {
-            mesage.hash = crypto.createHash('sha1')
-                .update(JSON.stringify(mesage.data))
-                .digest('hex');
+            mesage.hash = crypto.createHash('sha1').update(JSON.stringify(mesage.data)).digest('hex');
         } else if (mesage.data == null) {
             mesage.hash = null
         }

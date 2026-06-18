@@ -102,7 +102,14 @@ class MQServer {
             // the messsage's not yet supported
             io.inputs.is_callback = 0;
         }
-        let isWaitingAResponse = this.handleCallbackInRequestFromProducer(io, messageObject);
+        // A matched consumer with qos <= 0 is never processed by the scheduler.
+        // Don't wait for a result that will never come: acknowledge immediately
+        // (the message is still queued in DB) so the producer is not left hanging.
+        if (consumer != null && !(consumer.qos > 0)) {
+            io.inputs.is_callback = 0;
+        }
+        const isSynchronization = io.inputs.synchronization == 1;
+        let { isWaitingAResponse, pendingResponse } = this.handleCallbackInRequestFromProducer(io, messageObject, isSynchronization);
 
         messageObject.is_callback = io.inputs.is_callback;
         messageObject.postback_url = io.inputs.postback_url;
@@ -112,6 +119,14 @@ class MQServer {
         }
         if (consumer != null || !config.get("consumers.ignoreNotSupportedMessages", true)) {
             await this.$messageManager.push(messageObject);
+        }
+        // In synchronization mode, the ack was deferred until after the DB insert
+        // above so we can return the real DB id together with the message_code.
+        if (isSynchronization && pendingResponse) {
+            let status = (messageObject.status && messageObject.status.toLowerCase() === 'duplicated')
+                ? 'duplicated'
+                : pendingResponse.status;
+            this.noWaitingAndRespondItself(io, messageObject, status, messageObject.id != null ? messageObject.id : null);
         }
         if (consumer != null) {
             this.$event.fire('message::push', messageObject);
@@ -234,10 +249,21 @@ class MQServer {
         }
     }
 
-    handleCallbackInRequestFromProducer(io, messageObject) {
+    handleCallbackInRequestFromProducer(io, messageObject, isSynchronization = false) {
         var isWaitingAResponse = true;
+        var pendingResponse = null;
+        // In synchronization mode, defer the ack until the DB insert completes
+        // (so we can return the real DB id); otherwise respond immediately.
+        let self = this;
+        let respond = function (status) {
+            if (isSynchronization) {
+                pendingResponse = { status: status };
+            } else {
+                self.noWaitingAndRespondItself(io, messageObject, status);
+            }
+        };
         if (messageObject.status.toLowerCase() === "duplicated") {
-            this.noWaitingAndRespondItself(io, messageObject, "duplicated");
+            respond("duplicated");
             isWaitingAResponse = false;
         } else {
             // default io.inputs.is_callback is 1
@@ -245,24 +271,28 @@ class MQServer {
                 // return
                 if (io.inputs.postback_url) {
                     // return to postback_url
-                    this.noWaitingAndRespondItself(io, messageObject);
+                    respond("queued");
                     isWaitingAResponse = false;
                 }
             } else {
                 // no return
-                this.noWaitingAndRespondItself(io, messageObject);
+                respond("queued");
                 isWaitingAResponse = false;
             }
         }
-        return isWaitingAResponse;
+        return { isWaitingAResponse: isWaitingAResponse, pendingResponse: pendingResponse };
     }
 
-    noWaitingAndRespondItself(io, messageObject, status = "queued") {
+    noWaitingAndRespondItself(io, messageObject, status = "queued", id = null) {
+        let result = {
+            "message_code": messageObject.code,
+        };
+        if (id != null) {
+            result.id = id;
+        }
         io.status(200).json({
             "status": status,
-            "result": {
-                "message_code": messageObject.code,
-            }
+            "result": result
         });
     }
 

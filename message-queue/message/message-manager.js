@@ -40,7 +40,7 @@ class MessageManager {
 
 
     async push(message) {
-        await queue.add(async () => {
+        return await queue.add(async () => {
             return await knex.transaction(async (trx) => {
                 if (message.hash && message.hash !== '') {
                     const existingMessage = await trx('message')
@@ -51,16 +51,18 @@ class MessageManager {
                     if (existingMessage) {
                         message.status = 'DUPLICATED';
                         if (config.get("consumers.ignoreDuplicatedMessages", false)) {
-                            return;
+                            message.id = existingMessage.id;
+                            return existingMessage.id;
                         }
                     }
                 }
                 //@todo add to priority queue
                 const item = await trx('message').insert(message.serialize())
+                message.id = item[0];
                 if (message.status !== 'DUPLICATED') {
                     this.pushToConsumerQueue(item[0], message);
                 }
-                
+                return item[0];
             });
         });
     }
@@ -230,6 +232,12 @@ class MessageManager {
     }
 
     async pushToConsumerQueue(id, message) {
+        // Only registered consumers (qos > 0) are drained by the scheduler.
+        // Skip the rest (e.g. qos <= 0) so their messages don't pile up in an
+        // in-memory queue that is never consumed.
+        if (!consumerQueueManager.hasConsumer(message.last_consumer)) {
+            return;
+        }
         consumerQueueManager.setMessage(message.last_consumer, {
             id: id,
             delay_to: message.delay_to,

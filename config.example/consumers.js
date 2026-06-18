@@ -8,15 +8,10 @@ module.exports = {
     // "defaultRequestTimeout" (unit: second): default request timeout, we can change the timeout for each consumer by setting "requestTimeout" with that consumer
     // If the timeout is 0, it means it have no timeout!
     defaultRequestTimeout: 5,
-
     statAvgProcessingTime: false,
-
     removeMessageAfterProcessing: false,
-
     ignoreNotSupportedMessages: true,
-
     ignoreDuplicatedMessages: false,
-
     waitPostbackCompleted: false,
 
     // setting consumers
