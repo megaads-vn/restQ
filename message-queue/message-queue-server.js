@@ -320,7 +320,7 @@ class MQServer {
                         result: responseData.response.data
                     };
 
-                    console.log(`Postback request to: ${responseData.message.postback_url}`, postbackData);
+                    // console.log(`Postback request to: ${responseData.message.postback_url}`, postbackData);
                     let postbackResponse = await axios({
                         method: 'POST',
                         url: responseData.message.postback_url,
