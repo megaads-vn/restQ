@@ -18,10 +18,13 @@ function Config() {
      */
     this.get = function (key, defaultValue, ignoreCache = false) {
         var retval = defaultValue;
+        // Normalize the key BEFORE the cache lookup: the cache is written with the
+        // slashed key, so looking it up with the dotted key never hit and every call
+        // re-required the config file (leaking Modules via require-in-the-middle/children)
+        key = key.replaceAll(".", "/");
         if (!ignoreCache && configContainer[key] != null) {
             retval = configContainer[key];
         } else {
-            key = key.replaceAll(".", "/");
             var path = __dir + "/config/" + key;
             var parentPath = path.substring(0, path.lastIndexOf("/"));
             try {
