@@ -84,7 +84,11 @@ function HttpServer() {
         return retval;
     };
     function onRequest(server, req, res) {
-        req.session = self.sessionManager.initHTTPSession(req, res);
+        // API clients don't send cookies, so every request would create a new in-memory session.
+        // HTTP sessions are unused by the app, only enable them when explicitly configured.
+        if (config.get("session.enableHttpSession", false)) {
+            req.session = self.sessionManager.initHTTPSession(req, res);
+        }
         if (config.get("app.requestTimeout", -1) != -1) {
             req.setTimeout(parseInt(config.get("app.requestTimeout")), function () {
                 server.abort();

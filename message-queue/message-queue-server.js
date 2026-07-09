@@ -309,6 +309,8 @@ class MQServer {
                     } catch (error) {
                         self.$logger.warning('Response::error: ' + error.message);
                     }
+                    // Release the producer so its io (request/response) can be GC'd
+                    self.$producerManager.removeProducer(responseData.message.code);
                 }
             }
         }

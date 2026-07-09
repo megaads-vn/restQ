@@ -1,16 +1,20 @@
 const PriorityQueue = require('@datastructures-js/priority-queue').PriorityQueue;
 const config = require(__dir + "/core/app/config");
-const MAX_ITEMS = 12000000;
+// Giới hạn số message giữ trong RAM cho mỗi queue, phần còn lại sẽ được nạp lại từ DB khi queue cạn
+const MAX_ITEMS = config.get("consumers.maxQueueItems", 50000);
+const RELOAD_INTERVAL = config.get("consumers.queueReloadInterval", 60) * 1000;
 class ConsumerQueueManager {
     constructor(knex) {
         this.queues = {};
         this.consumers = {};
+        this.lastLoadAt = {};
         this.knex = knex;
     }
 
     init(consumers) {
         this.queues = {};
         this.consumers = {};
+        this.lastLoadAt = {};
         if (consumers.length > 0) {
             this.loadConsumers(consumers);
             this.loadQueues();
@@ -54,11 +58,12 @@ class ConsumerQueueManager {
     }
 
     getMessages(consumer, limit) {
-        if (!this.hasQueue(consumer)) {
+        if (!this.hasQueue(consumer) || this.queues[consumer].size() === 0) {
+            // Queue trong RAM đã cạn: có thể còn message tồn trong DB (vượt MAX_ITEMS lúc nạp), nạp lại
+            this.reloadQueueIfNeeded(consumer);
             return [];
         }
         const messages = [];
-        console.log('getMessages', consumer, this.queues[consumer].size());
         for (let i = 0; i < limit; i++) {
             const message = this.queues[consumer].dequeue();
             if (message && message.id) {
@@ -87,30 +92,42 @@ class ConsumerQueueManager {
     }
 
     async loadQueues() {
-        // Lấy MinId và MaxId
-        const [minMaxResult] = await this.knex('message')
-            .select(
-                this.knex.raw('MIN(id) as minId'),
-                this.knex.raw('MAX(id) as maxId')
-            );
-    
-        const { minId, maxId } = minMaxResult;
-        const batchSize = 20000;
-        for (let currentId = maxId; currentId >= minId; currentId -= batchSize) {
-            const startId = currentId - batchSize + 1;
-            const messages = await this.knex('message')
-                .select('id', 'priority', 'delay_to', 'last_consumer', 'retry_count')
-                .whereBetween('id', [startId, currentId])
-                .where('status', 'WAITING')
-                .where('retry_count', '<', config.get("consumers.maxRetryCount"));
-            if (messages.length > 0) {
-                this.distributeMessage(messages);
+        // Nạp theo từng consumer, dùng index (last_consumer, status, retry_count) thay vì quét theo dải id
+        for (const consumerName in this.consumers) {
+            try {
+                await this.loadQueue(consumerName);
+            } catch (error) {
+                console.log('loadQueue error', consumerName, error.message);
             }
-
         }
+        console.log('done load queues');
+    }
 
+    async loadQueue(consumer) {
+        this.lastLoadAt[consumer] = Date.now();
+        const messages = await this.knex('message')
+            .select('id', 'priority', 'delay_to', 'last_consumer', 'retry_count')
+            .where('last_consumer', consumer)
+            .where('status', 'WAITING')
+            .where('retry_count', '<', config.get("consumers.maxRetryCount"))
+            .limit(MAX_ITEMS);
+        if (messages.length > 0) {
+            this.distributeMessage(messages);
+        }
+        return messages.length;
+    }
 
-        console.log('done load queues', minId, maxId);
+    reloadQueueIfNeeded(consumer) {
+        if (!this.hasConsumer(consumer)) {
+            return;
+        }
+        const last = this.lastLoadAt[consumer] || 0;
+        if (Date.now() - last >= RELOAD_INTERVAL) {
+            this.lastLoadAt[consumer] = Date.now();
+            this.loadQueue(consumer).catch((error) => {
+                console.log('loadQueue error', consumer, error.message);
+            });
+        }
     }
 
     distributeMessage(messages) {
@@ -136,23 +153,6 @@ class ConsumerQueueManager {
             });
         }
     }
-
-    async batch(minId, maxId) {
-        // Xử lý từng batch
-        for (let currentId = minId; currentId <= maxId; currentId += batchSize) {
-            const endId = Math.min(currentId + batchSize - 1, maxId);
-
-            const messages = await this.knex('message')
-                .select('id', 'priority', 'delay_to', 'last_consumer', 'retry_count')
-                .whereBetween('id', [currentId, endId])
-                .where('status', 'WAITING')
-                .where('retry_count', '<', config.get("consumers.maxRetryCount"));
-
-            // Phân phối messages vào các queue tương ứng
-            this.distributeMessage(messages);
-        }
-    }
-
 
     loadConsumers(consumers) {
         for (let consumer of consumers) {

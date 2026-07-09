@@ -19,6 +19,13 @@ module.exports = {
 
     waitPostbackCompleted: false,
 
+    // "maxQueueItems": maximum number of waiting messages kept in memory per consumer queue,
+    // the rest stays in database and is reloaded when the in-memory queue is drained
+    maxQueueItems: 50000,
+
+    // "queueReloadInterval" (unit: second): minimum interval between reloads of a drained queue from database
+    queueReloadInterval: 60,
+
     // setting consumers
     consumers: [
         {
