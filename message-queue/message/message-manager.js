@@ -36,6 +36,29 @@ class MessageManager {
             ]);
             console.log("removeMessages", result);
         }, 1 * 60 * 60 * 1000);
+        // Memory diagnostics: log the size of every in-memory container that can grow
+        setInterval(() => {
+            try {
+                const producerManager = require(__dir + "/message-queue/producer/producer-manager");
+                let queueItems = 0;
+                for (const name in consumerQueueManager.queues) {
+                    queueItems += consumerQueueManager.queues[name].size();
+                }
+                const mem = process.memoryUsage();
+                const mb = (v) => Math.round(v / 1048576) + 'MB';
+                console.log('[mem-diag]',
+                    'rss=' + mb(mem.rss),
+                    'heapUsed=' + mb(mem.heapUsed),
+                    'heapTotal=' + mb(mem.heapTotal),
+                    'external=' + mb(mem.external),
+                    'pqueue.size=' + queue.size,
+                    'pqueue.pending=' + queue.pending,
+                    'queueItems=' + queueItems,
+                    'producers=' + producerManager.producers.length);
+            } catch (error) {
+                console.log('[mem-diag] error: ' + error.message);
+            }
+        }, 60 * 1000);
     }
 
 
