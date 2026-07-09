@@ -209,21 +209,35 @@ class MessageManager {
 
     async updateProcessingMessageAfterServerRestart(serverStartAt) {
         try {
-            await knex('message')
-            .where('status', 'PROCESSING')
-            .where('is_callback', '1')
-            .whereNotNull('postback_url')
-            .where('last_processing_at', '<', serverStartAt)
-            .update({
-                status: 'WAITING'
-            });
+            // Lặp theo từng last_consumer để các câu UPDATE dùng được index getMessage2
+            // (last_consumer, status, ...) thay vì full scan theo status
+            const consumers = await knex('message').distinct('last_consumer').pluck('last_consumer');
+            for (const consumer of consumers) {
+                const processingMessages = () => {
+                    const query = knex('message')
+                        .where('status', 'PROCESSING')
+                        .where('last_processing_at', '<', serverStartAt);
+                    if (consumer == null) {
+                        query.whereNull('last_consumer');
+                    } else {
+                        query.where('last_consumer', consumer);
+                    }
+                    return query;
+                };
 
-            await knex('message')
-            .where('status', 'PROCESSING')
-            .where('last_processing_at', '<', serverStartAt)
-            .update({
-                status: 'FAILED'
-            });
+                await processingMessages()
+                .where('is_callback', '1')
+                .whereNotNull('postback_url')
+                .where('postback_url', '!=', '')
+                .update({
+                    status: 'WAITING'
+                });
+
+                await processingMessages()
+                .update({
+                    status: 'FAILED'
+                });
+            }
         } catch (error) {
             console.log('updateProcessingMessageAfterServerRestart::error: ' + error.message);
         }
