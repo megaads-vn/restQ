@@ -65,6 +65,36 @@ class MessageManager {
                 console.log('[mem-diag] error: ' + error.message);
             }
         }, 60 * 1000);
+        // Heap sampling profiler (in-process, no debug port): dump allocation profile
+        // of live objects once heap usage crosses the threshold, to locate the leak
+        try {
+            const inspector = require('inspector');
+            const fs = require('fs');
+            const session = new inspector.Session();
+            session.connect();
+            session.post('HeapProfiler.enable', () => {
+                session.post('HeapProfiler.startSampling', { samplingInterval: 131072 }, () => {
+                    console.log('[mem-diag] heap sampling started');
+                });
+            });
+            let profileDumped = false;
+            setInterval(() => {
+                if (!profileDumped && process.memoryUsage().heapUsed > 700 * 1048576) {
+                    profileDumped = true;
+                    session.post('HeapProfiler.stopSampling', (err, res) => {
+                        if (err) {
+                            console.log('[mem-diag] sampling error: ' + err.message);
+                            return;
+                        }
+                        const out = '/root/heap-profile-' + Date.now() + '.json';
+                        fs.writeFileSync(out, JSON.stringify(res.profile));
+                        console.log('[mem-diag] heap profile written: ' + out);
+                    });
+                }
+            }, 30 * 1000);
+        } catch (error) {
+            console.log('[mem-diag] inspector unavailable: ' + error.message);
+        }
     }
 
 
