@@ -29,17 +29,17 @@ class Consumer extends ConsumerInterface {
     }
 
     async consume(message, requestTimeout, io = null) {
-        this.$logger.debug('Consume.consume: ', this.name);
-        this.$logger.debug('- message.code: ', message.code);        
-        this.$logger.debug('- consume.processing_request_count: ', this.processing_request_count);
-        this.$logger.debug('- consume.qos: ', this.qos);
+        let self = this;
+        // this.$logger.debug('Consume.consume: ', this.name);
+        // this.$logger.debug('- message.code: ', message.code);
+        // this.$logger.debug('- consume.processing_request_count: ', this.processing_request_count);
+        // this.$logger.debug('- consume.qos: ', this.qos);
         if (this.processing_request_count < this.qos
             && message.data
             && message.data.url
             && message.data.method
         ) {
             this.processing_request_count++;
-            let self = this;
             let requestConfig = this.buildRequestConfig(message, requestTimeout, io);
             requestConfig.maxContentLength = Infinity;
             requestConfig.maxBodyLength = Infinity;
