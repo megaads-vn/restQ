@@ -46,6 +46,7 @@ class MessageManager {
                 }
                 const mem = process.memoryUsage();
                 const mb = (v) => Math.round(v / 1048576) + 'MB';
+                const pool = knex.client && knex.client.pool ? knex.client.pool : null;
                 console.log('[mem-diag]',
                     'rss=' + mb(mem.rss),
                     'heapUsed=' + mb(mem.heapUsed),
@@ -54,7 +55,12 @@ class MessageManager {
                     'pqueue.size=' + queue.size,
                     'pqueue.pending=' + queue.pending,
                     'queueItems=' + queueItems,
-                    'producers=' + producerManager.producers.length);
+                    'producers=' + producerManager.producers.length,
+                    'db.used=' + (pool ? pool.numUsed() : '?'),
+                    'db.free=' + (pool ? pool.numFree() : '?'),
+                    'db.pendingAcquires=' + (pool ? pool.numPendingAcquires() : '?'),
+                    'handles=' + process._getActiveHandles().length,
+                    'requests=' + process._getActiveRequests().length);
             } catch (error) {
                 console.log('[mem-diag] error: ' + error.message);
             }
