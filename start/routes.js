@@ -18,6 +18,16 @@ module.exports = function ($route, $logger, $config) {
     $route.get("/", "HomeController@welcome");
     $route.get("/robots.txt", "HomeController@robots");
     $route.get("/favicon.ico", "HomeController@welcome");
+    // Vendored dashboard libraries: served locally because the "/*" catch-all
+    // route swallows asset URLs before the framework asset handler runs
+    $route.get("/js/highcharts.js", function (io) {
+        io.header("Content-Type", "application/javascript");
+        io.download(__dir + "/assets/js/highcharts.js");
+    });
+    $route.get("/js/axios.min.js", function (io) {
+        io.header("Content-Type", "application/javascript");
+        io.download(__dir + "/assets/js/axios.min.js");
+    });
     $route.get("/message/(:code)", "MessageController@get");
     $route.delete("/message/done", "MessageController@removeDoneMessages");
     $route.get("/monitor", "MonitorController@index", {
@@ -47,7 +57,7 @@ module.exports = function ($route, $logger, $config) {
                 .header("Access-Control-Allow-Credentials", "true")
                 .header("Access-Control-Max-Age", 28800)
                 .header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE, PATCH")
-                .header("Access-Control-Allow-Headers", "Content-Type, X-Auth-Token, Origin, Authorization, X-XSRF-TOKEN, Role-User, Token, auth-email, seller-token, token")
+                .header("Access-Control-Allow-Headers", "Content-Type, X-Auth-Token, Origin, Authorization, X-XSRF-TOKEN, Role-User, Token, auth-email, seller-token, token, x-ab-testing")
         }
     });
     $route.options("/*", function (io) {
@@ -55,7 +65,7 @@ module.exports = function ($route, $logger, $config) {
             .header("Access-Control-Allow-Credentials", "true")
             .header("Access-Control-Max-Age", 28800)
             .header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE, PATCH")
-            .header("Access-Control-Allow-Headers", "Content-Type, X-Auth-Token, Origin, Authorization, X-XSRF-TOKEN, Role-User, Token, auth-email, seller-token, token")
+            .header("Access-Control-Allow-Headers", "Content-Type, X-Auth-Token, Origin, Authorization, X-XSRF-TOKEN, Role-User, Token, auth-email, seller-token, token, x-ab-testing")
             .echo("POST, GET, OPTIONS, PUT, DELETE, PATCH");
     });
     /** Register socket.io requests **/
