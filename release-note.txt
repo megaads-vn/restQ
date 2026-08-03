@@ -1,3 +1,41 @@
+=============== 03Aug2026 ===============
+Message payload storage: the request payload can now be stored as a gzipped file under
+storage/messages instead of the `message.data` longtext column. The row keeps only a
+relative `data_path`.
+
+This is always on and needs no configuration. config/message-store.js is optional and only
+exists to tune storage path / compression / sweeper (see config.example/message-store.js).
+
+Setup (in this order):
+1. Run the migration BEFORE deploying this code: `node db-migration.js` (adds `data_path`).
+   There is no switch to turn this off, so deploying without the column breaks inserts.
+2. Optionally migrate existing rows: `node tools/backfill-message-data.js --dry-run` first,
+   then for real, then `OPTIMIZE TABLE message;` to actually reclaim disk space.
+
+Migrating an existing table (message_old -> message):
+  If you rebuilt `message` without the `data` column and kept the old one as
+  `message_old`, use `node tools/migrate-message-old.js` instead of the backfill script.
+  It preserves ids, copies every shared column, and is safe to re-run (already migrated
+  ids are skipped). Start with --dry-run. It never modifies message_old.
+
+Notes:
+- `serialize()` no longer emits a `data` key at all, so `message` does not need that
+  column any more. Rows that still have one keep being read from it.
+- If writing the payload file fails (e.g. disk full) the publish now fails loudly - there
+  is no `data` column left to fall back to.
+- On successful processing with removeMessageAfterProcessing = true the DB row is deleted
+  first, then the file.
+- Bulk deletes (hourly DONE purge, DELETE /message/done) now run in batches and delete the
+  payload files too.
+- An orphan-file sweeper runs every 6h, deleting payload files older than 48h that no
+  message row points at any more.
+- Backups must now include storage/messages, not just the database.
+- Running more than one instance requires shared storage for storage/messages.
+
+Fixed: Message.buildMessageFromDatabaseRecord no longer loses the stored `hash` when the
+`data` column is NULL (generateHash() would null it, and the next update() wrote that back,
+breaking deduplication).
+
 =============== 20Nov2024 ===============
 Message Consumer: Only set the message status to "fail" if it is not a callback message.
 Server Restarting:

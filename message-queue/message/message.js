@@ -5,6 +5,9 @@ class Message {
         this.code = Message.generateMessageCode(32);
         this.status = 'WAITING';
         this.data = data;
+        // Set once at insert time when the payload is stored as a file instead of
+        // the `data` longtext column. Never rewritten afterwards.
+        this.data_path = null;
         this.path = data ? data.url : null;
         this.priority = priority;
         this.retry_count = 0;
@@ -32,9 +35,10 @@ class Message {
     }
 
     serialize() {
-        return {
+        let retVal = {
             code: this.code ?? Message.generateMessageCode(32),
-            data: this.data ? JSON.stringify(this.data) : null,
+            // No `data` key at all: the payload always lives in a file now, and the
+            // `message` table no longer has that column.
             hash: this.hash,
             path: this.path,
             priority: this.priority,
@@ -47,8 +51,10 @@ class Message {
             first_processing_at: this.first_processing_at,
             last_processing_at: this.last_processing_at,
             last_processed_at: this.last_processed_at,
-            delay_to: this.delay_to
-        }
+            delay_to: this.delay_to,
+            data_path: this.data_path ?? null
+        };
+        return retVal;
     }
 
     static buildMessageFromDatabaseRecord(data) {
@@ -56,6 +62,7 @@ class Message {
         retVal.id = data.id ?? retVal.id;
         retVal.code = data.code ?? retVal.code;
         retVal.data = data.data ? JSON.parse(data.data) : retVal.data;
+        retVal.data_path = data.data_path ?? null;
         retVal.hash = data.hash;
         retVal.path = data.path ?? retVal.path;
         retVal.priority = data.priority ?? retVal.priority;
@@ -70,6 +77,12 @@ class Message {
         retVal.last_processed_at = data.last_processed_at ?? retVal.last_processed_at;
         retVal.delay_to = data.delay_to ? retVal.last_processed_at : 0;
         Message.generateHash(retVal);
+        // generateHash() nulls the hash whenever `data` is null, with no regard for an
+        // already-stored hash. For file-backed rows `data` IS null at this point, so
+        // without this the next update() would write hash = NULL back and break dedup.
+        if (data.hash) {
+            retVal.hash = data.hash;
+        }
         return retVal;
     }
 

@@ -1,6 +1,7 @@
 const config = require(__dir + "/core/app/config");
 const knex = require('knex')(config.get("database"));
 const Message = require("./message");
+const messageStore = require("./message-store");
 var lock = new (require('async-lock'))({
     maxPending: 1000000,
     maxExecutionTime: 3000,
@@ -36,35 +37,126 @@ class MessageManager {
             ]);
             console.log("removeMessages", result);
         }, 1 * 60 * 60 * 1000);
+        // Orphan file sweeper. Registered here (constructor of a singleton) rather
+        // than in MQServer.start(), which reload()/hardRestart() call again and would
+        // therefore stack up duplicate intervals.
+        this.startOrphanSweeper();
+    }
+
+    startOrphanSweeper() {
+        // On by default, like the store itself. Only an explicit `enabled: false` in
+        // config/message-store.js turns it off.
+        const sweeper = config.get("message-store.sweeper", {}) || {};
+        if (sweeper.enabled === false) {
+            return;
+        }
+        const intervalMinutes = sweeper.intervalMinutes != null ? sweeper.intervalMinutes : 360;
+        const dryRun = sweeper.dryRun === true;
+        const run = async () => {
+            try {
+                const result = await messageStore.sweepOrphans(
+                    (codes) => this.getExistingMessageCodes(codes),
+                    {
+                        dryRun: dryRun,
+                        minAgeHours: sweeper.minAgeHours != null ? sweeper.minAgeHours : 48
+                    }
+                );
+                console.log("sweepOrphans", (dryRun ? "(dry-run) " : "") + JSON.stringify(result));
+            } catch (error) {
+                console.log('sweepOrphans::error: ' + error.message);
+            }
+        };
+        setInterval(run, intervalMinutes * 60 * 1000);
+    }
+
+    async getExistingMessageCodes(codes) {
+        const rows = await knex('message').select('code').whereIn('code', codes);
+        return new Set(rows.map(row => row.code));
     }
 
 
     async push(message) {
         return await queue.add(async () => {
-            return await knex.transaction(async (trx) => {
-                if (message.hash && message.hash !== '') {
-                    const existingMessage = await trx('message')
-                        .where('hash', message.hash)
-                        .whereIn('status', ['WAITING', 'PROCESSING'])
-                        .first();
+            // Written before (not inside) the transaction so the DB connection is not
+            // held during gzip + fs. The two non-insert exits below unlink it again.
+            let writtenPath = null;
+            if (message.data != null) {
+                // No fallback: the `message` table has no `data` column any more, so a
+                // failed write means the payload has nowhere to live. Fail the publish
+                // loudly instead of storing a message that can never be consumed.
+                writtenPath = await messageStore.write(message);
+                message.data_path = writtenPath;
+            }
+            let inserted = false;
+            try {
+                const id = await knex.transaction(async (trx) => {
+                    if (message.hash && message.hash !== '') {
+                        const existingMessage = await trx('message')
+                            .select('id')
+                            .where('hash', message.hash)
+                            .whereIn('status', ['WAITING', 'PROCESSING'])
+                            .first();
 
-                    if (existingMessage) {
-                        message.status = 'DUPLICATED';
-                        if (config.get("consumers.ignoreDuplicatedMessages", false)) {
-                            message.id = existingMessage.id;
-                            return existingMessage.id;
+                        if (existingMessage) {
+                            message.status = 'DUPLICATED';
+                            if (config.get("consumers.ignoreDuplicatedMessages", false)) {
+                                message.id = existingMessage.id;
+                                return existingMessage.id;
+                            }
                         }
                     }
+                    //@todo add to priority queue
+                    const item = await trx('message').insert(message.serialize())
+                    inserted = true;
+                    message.id = item[0];
+                    if (message.status !== 'DUPLICATED') {
+                        this.pushToConsumerQueue(item[0], message);
+                    }
+                    return item[0];
+                });
+                if (!inserted && writtenPath) {
+                    // ignoreDuplicatedMessages returned early, no row owns this file
+                    message.data_path = null;
+                    await messageStore.remove(writtenPath).catch(() => { });
                 }
-                //@todo add to priority queue
-                const item = await trx('message').insert(message.serialize())
-                message.id = item[0];
-                if (message.status !== 'DUPLICATED') {
-                    this.pushToConsumerQueue(item[0], message);
+                return id;
+            } catch (error) {
+                if (writtenPath) {
+                    // insert threw or the transaction rolled back
+                    message.data_path = null;
+                    await messageStore.remove(writtenPath).catch(() => { });
                 }
-                return item[0];
-            });
+                throw error;
+            }
         });
+    }
+
+    /**
+     * Build a Message from a DB row, reading the payload back from disk when the row
+     * is file-backed. Throws if the file is missing or corrupt.
+     */
+    async hydrateMessage(messageRecord) {
+        let messageObj = Message.buildMessageFromDatabaseRecord(messageRecord);
+        if (messageObj.data == null && messageRecord.data_path) {
+            messageObj.data = await messageStore.read(messageRecord.data_path);
+        }
+        return messageObj;
+    }
+
+    /**
+     * A message whose payload cannot be read can never be consumed: consumer.consume()
+     * would drop it into the QOS branch and requeue it as WAITING forever. Fail it.
+     */
+    async failUnreadableMessage(messageRecord, error) {
+        console.log('MessageStore::read error: ' + messageRecord.code + ' - ' + error.message);
+        try {
+            await knex('message').where('id', messageRecord.id).update({
+                status: 'FAILED',
+                last_processed_at: Date.now()
+            });
+        } catch (updateError) {
+            console.log('failUnreadableMessage::error: ' + updateError.message);
+        }
     }
 
 
@@ -79,14 +171,20 @@ class MessageManager {
                 let messageRecords = await self.buildQueryByCondition(query, messageCondition).offset(0).limit(limit);
                 for (let index = 0; index < messageRecords.length; index++) {
                     const messageRecord = messageRecords[index];
-                    messageRecord.status = 'PROCESSING';
-                    let now = Date.now();
-                    if (!messageRecord.first_processing_at) {
-                        messageRecord.first_processing_at = now;
+                    let messageObj;
+                    try {
+                        messageObj = await self.hydrateMessage(messageRecord);
+                    } catch (error) {
+                        await self.failUnreadableMessage(messageRecord, error);
+                        continue;
                     }
-                    messageRecord.last_processing_at = now;
+                    messageObj.status = 'PROCESSING';
+                    let now = Date.now();
+                    if (!messageObj.first_processing_at) {
+                        messageObj.first_processing_at = now;
+                    }
+                    messageObj.last_processing_at = now;
 
-                    let messageObj = Message.buildMessageFromDatabaseRecord(messageRecord);
                     await self.update(messageObj);
                     retVal.push(messageObj);
                 }
@@ -111,13 +209,19 @@ class MessageManager {
                 .where('retry_count', '<', self.maxRetryCount)
                 .first();
                 if (messageRecord) {
-                    messageRecord.status = 'PROCESSING';
-                    let now = Date.now();
-                    if (!messageRecord.first_processing_at) {
-                        messageRecord.first_processing_at = now;
+                    let messageObj;
+                    try {
+                        messageObj = await self.hydrateMessage(messageRecord);
+                    } catch (error) {
+                        await self.failUnreadableMessage(messageRecord, error);
+                        continue;
                     }
-                    messageRecord.last_processing_at = now;
-                    let messageObj = Message.buildMessageFromDatabaseRecord(messageRecord);
+                    messageObj.status = 'PROCESSING';
+                    let now = Date.now();
+                    if (!messageObj.first_processing_at) {
+                        messageObj.first_processing_at = now;
+                    }
+                    messageObj.last_processing_at = now;
                     await self.update(messageObj);
                     retVal.push(messageObj);
                 }
@@ -132,12 +236,45 @@ class MessageManager {
      * @returns Number of deleted messages
      */
     async removeMessages(conditions = []) {
-        let query = knex('message');
-        for (let index = 0; index < conditions.length; index++) {
-            const condition = conditions[index];
-            query.where(condition.key, condition.operator, condition.value);
+        // Batched so the payload files of the deleted rows can be removed too, and so
+        // a large backlog is not deleted under one long lock (the message_stat delete
+        // trigger fires per row).
+        const batchSize = config.get("message-store.deleteBatchSize", 1000);
+        let total = 0;
+        for (; ;) {
+            let selectQuery = knex('message').select('id', 'data_path');
+            for (let index = 0; index < conditions.length; index++) {
+                const condition = conditions[index];
+                selectQuery.where(condition.key, condition.operator, condition.value);
+            }
+            const rows = await selectQuery.limit(batchSize);
+            if (rows.length === 0) {
+                break;
+            }
+            const deleted = await knex('message').whereIn('id', rows.map(row => row.id)).del();
+            total += deleted;
+            if (deleted === 0) {
+                // nothing could be deleted although rows still match: stop instead of
+                // spinning forever inside the hourly purge
+                console.log('removeMessages: no rows deleted for a matching batch, aborting');
+                break;
+            }
+            for (let index = 0; index < rows.length; index++) {
+                const dataPath = rows[index].data_path;
+                if (!dataPath) {
+                    continue;
+                }
+                try {
+                    await messageStore.remove(dataPath);
+                } catch (error) {
+                    console.log('MessageStore::remove error: ' + dataPath + ' - ' + error.message);
+                }
+            }
+            if (rows.length < batchSize) {
+                break;
+            }
         }
-        return await query.del();
+        return total;
     }
 
     buildQueryByCondition(query, messageCondition) {
@@ -201,12 +338,29 @@ class MessageManager {
         let updatedMessage = message.serialize();
         if (ignoreData) {
             delete updatedMessage.data;
+            // written once at insert, never rewritten
+            delete updatedMessage.data_path;
         }
         return await knex('message').where('code', message.code).update(updatedMessage);
     }
 
+    /**
+     * Row first, file second. A crash in between leaves an orphan file (the sweeper
+     * cleans those up); the opposite order would leave a row pointing at a missing
+     * file, which is unrecoverable and kills the message.
+     * message.data is deliberately left intact - respond() still needs it to build
+     * the postback body after this returns.
+     */
     async removeMessage(message) {
-        return await knex('message').where('code', message.code).del();
+        const result = await knex('message').where('code', message.code).del();
+        if (message.data_path) {
+            try {
+                await messageStore.remove(message.data_path);
+            } catch (error) {
+                console.log('MessageStore::remove error: ' + message.code + ' - ' + error.message);
+            }
+        }
+        return result;
     }
 
     async updateProcessingMessageAfterServerRestart(serverStartAt) {
