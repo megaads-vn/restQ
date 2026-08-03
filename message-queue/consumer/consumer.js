@@ -2,6 +2,31 @@ const ConsumerInterface = require("./consumer-interface");
 const axios = require('axios');
 const urlPackage = require('url');
 
+const LOG_BODY_MAX_LENGTH = 2000;
+
+/**
+ * Bodies can be huge (base64 uploads, HTML error pages), so keep the log readable.
+ */
+function summarizeBody(body) {
+    if (body == null) {
+        return null;
+    }
+    let text;
+    if (typeof body === 'string') {
+        text = body;
+    } else {
+        try {
+            text = JSON.stringify(body);
+        } catch (error) {
+            text = String(body);
+        }
+    }
+    if (text.length > LOG_BODY_MAX_LENGTH) {
+        return text.substring(0, LOG_BODY_MAX_LENGTH) + '...[truncated, total ' + text.length + ' chars]';
+    }
+    return text;
+}
+
 class Consumer extends ConsumerInterface {
     constructor($config, $event, $logger, origin = null, qos = 0, paths = []) {
         super();
@@ -58,7 +83,27 @@ class Consumer extends ConsumerInterface {
                         status: 'successful'
                     });
                 }).catch(function (error) {
-                    self.$logger.error('Consume Function: ' + error.message, requestConfig);
+                    const response = error.response;
+                    self.$logger.error('Consume Function: ' + error.message, {
+                        message_code: message.code,
+                        message_id: message.id,
+                        consumer: self.name,
+                        error_code: error.code,
+                        request: {
+                            method: requestConfig.method,
+                            url: requestConfig.url,
+                            headers: requestConfig.headers,
+                            body: summarizeBody(requestConfig.data)
+                        },
+                        // what the upstream actually answered - this is where a 4xx
+                        // explains itself (validation errors, missing fields, ...)
+                        response: response ? {
+                            status: response.status,
+                            statusText: response.statusText,
+                            headers: response.headers,
+                            body: summarizeBody(response.data)
+                        } : null
+                    });
                     if (error.code === 'ECONNABORTED' && (message.is_callback == 0 || message.postback_url == null)) {
                         message.status = 'FAILED';
                     } else {
