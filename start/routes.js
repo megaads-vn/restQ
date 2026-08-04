@@ -18,6 +18,12 @@ module.exports = function ($route, $logger, $config) {
     $route.get("/", "HomeController@welcome");
     $route.get("/robots.txt", "HomeController@robots");
     $route.get("/favicon.ico", "HomeController@welcome");
+    // Exact paths are matched before pattern routes, so this is not shadowed by
+    // "/message/(:code)" below. Token-gated: ids are sequential and guessable, unlike
+    // the 32-char message code.
+    $route.get("/message/data", "MessageController@getData", {
+        before: auth
+    });
     $route.get("/message/(:code)", "MessageController@get");
     $route.delete("/message/done", "MessageController@removeDoneMessages");
     $route.get("/monitor", "MonitorController@index", {
